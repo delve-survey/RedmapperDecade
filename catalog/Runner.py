@@ -1,7 +1,7 @@
 import redmapper
 import numpy as np, fitsio, h5py, matplotlib.pyplot as plt
 import healsparse as hsp, healpy as hp
-import os, re, esutil, sys, time, glob, joblib, textwrap
+import os, re, esutil, sys, time, glob, joblib, textwrap, shutil, yaml, pathlib
 from tqdm import tqdm
 
 sys.path.insert(0, os.path.dirname(__file__) + '/../') #Goes from catalog/ to mapper/ path
@@ -24,23 +24,26 @@ def timeit(func):
 
 class BaseRunner:
 
-    def __init__(self, outBase):
+    def __init__(self, outBase, seed = 42):
         self.outBase = outBase
-        pass
+        self.seed    = seed
 
     @timeit
     def go(self):
 
-        self.prep_training_catalog(n_jobs = 24)
-        self.make_all_maps()
-        self.make_master_galaxy_catalog()
-        self.make_spec_catalog()
-        self.make_spec_catalog_redseq()
-        self.make_config_yaml()
-        self.run_redmapper_calibration()
-        self.run_zred_pixel()
-        self.run_zred_bkg()
-        self.run_redmapper_pixel()
+        # self.prep_training_catalog(n_jobs = 24)
+        # self.make_all_maps()
+        # self.make_master_galaxy_catalog()
+        # self.make_spec_catalog()
+        # self.make_spec_catalog_redseq()
+        # self.make_config_yaml()
+        # self.run_redmapper_calibration()
+        # self.run_zred_pixel()
+        # self.run_zred_bkg()
+        # self.run_redmapper_pixel()
+        self.consolidate_redmapper_pixel()
+        self.make_randoms()
+        self.make_redmagic()
         
     @timeit
     def prep_training_catalog(self, n_jobs):
@@ -212,6 +215,11 @@ class BaseRunner:
     @timeit
     def compute_depth_map(self):
 
+
+        if os.path.isfile(self.outBase + '_nside4096_nest_z_depth.fits.gz'):
+            print("FILES FOUND. SKIPPING....")
+            return None
+
         files = glob.glob(self.outBase + '_pix?????.fits')
         print(f"FOUND {len(files)} PIXEL FILES. CONSOLATING.....")
         etools.des_depth.pixelConsolidate(files, self.outBase + '_coarse_depth.fits', nSide = 1024, nest = False)
@@ -229,6 +237,10 @@ class BaseRunner:
 
     @timeit
     def compute_exp_limit(self):
+
+        if os.path.isfile(self.outBase + '_coarse_depth_teff.fits'):
+            print("FOUD COARSE_DEPTH_TEFF FILE. SKIPPING....")
+            return None
 
         etools.des_depth.expLimit(self.outBase + '_coarse_depth.fits', ['g', 'r', 'i', 'z'], npixMax = [5,5,5,5])
 
@@ -282,6 +294,12 @@ class BaseRunner:
         
     @timeit
     def make_master_galaxy_catalog(self):
+
+
+        if os.path.isfile(self.outBase + "_master_table.fit"):
+            print("FOUND MASTER TABLE. SKIPPING MAKE CATALOG...")
+            return None
+
         widebase  = self.outBase
         outbase   = self.outBase
         maskfile  = self.outBase + '.decade_pixmask.hs'
@@ -401,8 +419,41 @@ class BaseRunner:
         maker.finalize_catalog()
     
     @timeit
+    def make_spec_catalog(self):
+
+        if os.path.isfile(self.outBase + ".all_specz.fits"):
+            print("FOUND ALL SPECZ CATALOG. SKIPPING MAKE CATALOG...")
+            return None
+
+        specz = fitsio.read("/project/chto/dhayaa/decade/specz/BOSS_eBOSS.fits")
+        specz_DESI1 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/BGS_BRIGHT-21.5_NGC_clustering.dat.fits")
+        specz_DESI2 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/BGS_BRIGHT-21.5_SGC_clustering.dat.fits")
+        specz_DESI3 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/LRG_NGC_clustering.dat.fits")
+        specz_DESI4 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/LRG_SGC_clustering.dat.fits")
+        specz_DESI5 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/ELG_LOPnotqso_NGC_clustering.dat.fits")
+        specz_DESI6 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/ELG_LOPnotqso_SGC_clustering.dat.fits")
+
+
+        spec_dtype = [('ra', 'f8'), ('dec', 'f8'), ('z', 'f4'), ('z_err', 'f4')]
+
+        allspec    = np.zeros(specz.size + specz_DESI1.size + specz_DESI2.size + specz_DESI3.size + 
+                              specz_DESI4.size + specz_DESI5.size + specz_DESI6.size, dtype = spec_dtype)
+        for item1, item2 in zip(['ra','dec','z'], ['RA','DEC','Z']):
+            allspec[item1] = np.r_[specz[item2], specz_DESI1[item2], specz_DESI2[item2],specz_DESI3[item2],
+                                   specz_DESI4[item2], specz_DESI5[item2], specz_DESI6[item2]]
+
+        allspec['z_err'] = 1e-4
+
+        allspec = allspec[allspec['z'] > 0.01] #Remove very low redshifts. Use 0.01 to remove stars.
+        fitsio.write(self.outBase + ".all_specz.fits", allspec, clobber = True)
+
+    @timeit
     def make_spec_catalog_redseq(self):
         
+        if os.path.isfile(self.outBase + ".train_specz.fits"):
+            print("FOUND TRAIN SPECZ CATALOG. SKIPPING MAKE CATALOG...")
+            return None
+            
         galaxy  = redmapper.galaxy.GalaxyCatalog.from_galfile(self.outBase + "_master_table.fit")
         allspec = fitsio.read(self.outBase + ".all_specz.fits")
 
@@ -487,36 +538,18 @@ class BaseRunner:
 
         print("SAVED CUT CATALOG")
 
-        
-    @timeit
-    def make_spec_catalog(self):
-        specz = fitsio.read("/project/chto/dhayaa/decade/specz/BOSS_eBOSS.fits")
-        specz_DESI1 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/BGS_BRIGHT-21.5_NGC_clustering.dat.fits")
-        specz_DESI2 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/BGS_BRIGHT-21.5_SGC_clustering.dat.fits")
-        specz_DESI3 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/LRG_NGC_clustering.dat.fits")
-        specz_DESI4 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/LRG_SGC_clustering.dat.fits")
-        specz_DESI5 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/ELG_LOPnotqso_NGC_clustering.dat.fits")
-        specz_DESI6 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/ELG_LOPnotqso_SGC_clustering.dat.fits")
-
-
-        spec_dtype = [('ra', 'f8'), ('dec', 'f8'), ('z', 'f4'), ('z_err', 'f4')]
-
-        allspec    = np.zeros(specz.size + specz_DESI1.size + specz_DESI2.size + specz_DESI3.size + 
-                              specz_DESI4.size + specz_DESI5.size + specz_DESI6.size, dtype = spec_dtype)
-        for item1, item2 in zip(['ra','dec','z'], ['RA','DEC','Z']):
-            allspec[item1] = np.r_[specz[item2], specz_DESI1[item2], specz_DESI2[item2],specz_DESI3[item2],
-                                   specz_DESI4[item2], specz_DESI5[item2], specz_DESI6[item2]]
-
-        allspec['z_err'] = 1e-4
-
-        allspec = allspec[allspec['z'] > 0.01] #Remove very low redshifts. Use 0.01 to remove stars.
-        fitsio.write(self.outBase + ".all_specz.fits", allspec, clobber = True)
-
     @timeit
     def make_calibration_hpix(self):
+
+        specz       = fitsio.read(self.outBase + ".train_specz.fits")
+        hpix_specz  = np.unique(hp.ang2pix(8, specz['ra'], specz['dec'], lonlat = True))
+
+        print(f"{len(hpix_specz)} PIXELS HAVE SPECZ IN THEM")
+
         hpix_choice = sorted(glob.glob(self.outBase + '_pix?????.fits'))
         hpix_choice = [int(h[-10:-5]) for h in hpix_choice]
-        np.random.default_rng(seed = 42).shuffle(hpix_choice)
+        hpix_choice = [h for h in hpix_choice if h in hpix_specz]
+        np.random.default_rng(seed = self.seed).shuffle(hpix_choice)
         hpix_choice = hpix_choice[:int(len(hpix_choice) * 0.5)] #Use half of sample to calibrate
 
         return hpix_choice
@@ -525,6 +558,10 @@ class BaseRunner:
     @timeit
     def make_config_yaml(self):
 
+        if os.path.isfile(self.outBase + '_config.yaml'):
+            print("CONFIG ALREADY EXISTS. SKIPPING...")
+            return None
+        
         hpix_choice = self.make_calibration_hpix()
 
         CONFIG = f"""
@@ -818,6 +855,15 @@ class BaseRunner:
         # # This will use python multiprocessing to run on config.calib_nproc cores
         # zredRunpix.run()
 
+        dirname  = os.path.dirname(self.outBase)
+        basename = os.path.basename(self.outBase)
+        outpath  = f"{dirname}_run/zreds/{basename}_zreds_master_table.fit"
+
+        if os.path.isfile(outpath):
+            print("FOUND ZRED MASTER TABLE AT", outpath, "SKIPPING....")
+            return None
+        
+
         filelist = sorted(glob.glob(self.outBase + '_pix*_bdf.fits')) #Get all files by checking for bdf fits
         pixlist  = [int(f[-14:-9]) for f in filelist] #Get only the pixel part of the name
         pixlist  = [pixlist[i] for i in np.random.choice(len(pixlist), len(pixlist), replace = False)] #Randomize to balance the load
@@ -829,6 +875,7 @@ class BaseRunner:
         jobs = [joblib.delayed(self._single_step_zred_pixel)(p) for p in pixlist]
         out  = joblib.Parallel(n_jobs = n_jobs, verbose = 10)(jobs)
 
+    
     def _single_step_zred_pixel(self, pix):
 
         runZredPixelTask = redmapper.pipeline.RunZredPixelTask(os.path.dirname(self.outBase) + '_run/run_default.yml', 
@@ -845,15 +892,25 @@ class BaseRunner:
 
 
     @timeit
-    def run_redmapper_pixel(self, n_jobs = -1):
+    def run_redmapper_pixel(self, n_jobs = 16):
 
         filelist = sorted(glob.glob(self.outBase + '_pix*_bdf.fits')) #Get all files by checking for bdf fits
         pixlist  = [int(f[-14:-9]) for f in filelist] #Get only the pixel part of the name
         pixlist  = [pixlist[i] for i in np.random.choice(len(pixlist), len(pixlist), replace = False)] #Randomize to balance the load
         
+        #Find which hpix we have zreds for. Even though we start with the full catalog
+        #We subselect and only run on regions with foreground mask (and fracgood) set.
+        #So this figures out which coarse pixels can still be used.
+        hpixlist = sorted(glob.glob(f"{os.path.dirname(self.outBase)}_run/zreds/*zreds_???????.fit"))
+        hpixlist = [int(f[-11:-4]) for f in hpixlist]
+        hpixlist = hp.ang2pix(8, *hp.pix2ang(32, hpixlist))
+
+        pixlist  = [p for p in pixlist if p in hpixlist]
+
+        np.save('/scratch/midway3/dhayaa/hpix8.npy', np.array(pixlist))
         if n_jobs == -1: n_jobs = np.min([os.cpu_count(), len(filelist)])
 
-        print(f"RUNNING {len(pixlist)} PIXELS USING {n_jobs} JOBS", flush = True)
+        print(f"RUNNING {len(pixlist)} PIXELS (OUT OF POSSIBLE {len(filelist)}) USING {n_jobs} JOBS", flush = True)
 
         jobs = [joblib.delayed(self._single_step_run_redmapper_pixel)(p) for p in pixlist]
         out  = joblib.Parallel(n_jobs = n_jobs, verbose = 10)(jobs)
@@ -861,17 +918,205 @@ class BaseRunner:
     
     def _single_step_run_redmapper_pixel(self, pix):
 
+        if os.path.isfile(os.path.dirname(self.outBase) + f'/my_decade_run_8_{pix:05d}_final_catalog.fit'):
+            print("HPIX RUN EXISTS. SKIPPING.....")
+            return None
+        
         runRedmapperPixelTask = redmapper.pipeline.RunRedmapperPixelTask(os.path.dirname(self.outBase) + '_run/run_default.yml', 
                                                                          pix, 8, path = os.path.dirname(self.outBase))
         runRedmapperPixelTask.run()
 
+
+    @timeit
+    def consolidate_redmapper_pixel(self):
+
+        if os.path.isfile(os.path.dirname(self.outBase) + "/my_decade_run_redmapper_v0.8.7_lgt05_vl02_catalog.fit"):
+            print("FILE EXISTS. SKIPPING.....")
+            return None
+        
+        consolidate = redmapper.pipeline.RedmapperConsolidateTask(os.path.dirname(self.outBase) + '_run/run_default.yml')
+        consolidate.run()
+
+
+    @timeit
+    def make_randoms(self):
+
+        config = os.path.dirname(self.outBase) + '/zmask02/zmask02.yml'
+
+        self.setup_random_run(config)
+        self.generate_randoms(config)
+        self.redmapper_randoms_zmask(config)
+        self.weight_randoms(config)
+
+
+    @timeit
+    def setup_random_run(self, config_path):
+
+        if os.path.isfile(os.path.dirname(self.outBase) + "/zmask02/my_decade_run_redmapper_v0.8.7_vl02_vlim_zmask.fit"):
+            print("FILES EXIST. SKIPPING....")
+            return None
+        
+        #Make a new directory and duplicate config files
+        os.makedirs(os.path.dirname(config_path), exist_ok = True)
+        run_config  = os.path.dirname(self.outBase) + '_run/run_default.yml'
+        rand_config = config_path
+        shutil.copy(run_config, rand_config)
+        
+        #Rewrite lines in config
+        path = pathlib.Path(rand_config)
+        data = yaml.safe_load(path.read_text())
+        data["catfile"]  = os.path.dirname(self.outBase) + "/my_decade_run_redmapper_v0.8.7_lgt05_vl02_catalog.fit"
+        data["randfile"] = os.path.dirname(self.outBase) + "/zmask02/my_decade_randoms_master_table.fit"
+        path.write_text(yaml.safe_dump(data, sort_keys=False))
+
+        config = redmapper.Configuration(rand_config)
+
+        #Move zmask file over
+        shutil.copy(os.path.dirname(self.outBase) + "/my_decade_run_redmapper_v0.8.7_vl02_vlim_zmask.fit", 
+                    os.path.dirname(self.outBase) + "/zmask02/")
+
+
+    @timeit
+    def generate_randoms(self, config):
+
+        if os.path.isfile(os.path.dirname(self.outBase) + "/zmask02/my_decade_randoms_master_table.fit"):
+            print("FILES EXIST. SKIPPING....")
+            return None
+        
+        #Run Step 6.1
+        generateRandoms = redmapper.GenerateRandoms(redmapper.Configuration(config))
+        generateRandoms.generate_randoms(50_000_000)
+
+
+    @timeit
+    def redmapper_randoms_zmask(self, config, n_jobs = -1):
+
+        filelist = sorted(glob.glob(os.path.dirname(config) + '/*randoms_???????.fit')) #Get all files by checking for bdf fits
+        pixlist  = [int(f[-11:-4]) for f in filelist] #Get only the pixel part of the name
+        pixlist  = [pixlist[i] for i in np.random.choice(len(pixlist), len(pixlist), replace = False)] #Randomize to balance the load
+        
+        if n_jobs == -1: n_jobs = np.min([os.cpu_count(), len(filelist)])
+
+        print(f"RUNNING {len(pixlist)} PIXELS (OUT OF POSSIBLE {len(filelist)}) USING {n_jobs} JOBS", flush = True)
+
+        jobs = [joblib.delayed(self._single_step_run_zmask_pixel)(p, config) for p in pixlist]
+        out  = joblib.Parallel(n_jobs = n_jobs, verbose = 10)(jobs)
+
+        if os.path.isfile(os.path.dirname(self.outBase) + '/my_decade_run_redmapper_v0.8.7_randoms_zmask_catalog.fit'):
+            print("Consolidated file exists. Skipping.....")
+            return None
+
+        consolidate = redmapper.pipeline.RuncatConsolidateTask(config)
+        consolidate.run(do_plots = False, match_spec = False, consolidate_members = False, cattype = 'randoms_zmask')
+
+    
+    def _single_step_run_zmask_pixel(self, pix, config):
+
+        if os.path.isfile(os.path.dirname(self.outBase) + f'/my_decade_run_32_{pix:05d}_randoms_zmask_catalog.fit'):
+            return None
+        
+        runRedmapperPixelTask = redmapper.pipeline.RunZmaskPixelTask(config, pix, 32, path = os.path.dirname(self.outBase))
+        runRedmapperPixelTask.run()
+
+
+    @timeit
+    def weight_randoms(self, config):
+
+        if os.path.isfile(os.path.dirname(self.outBase) + '/my_decade_run_redmapper_v0.8.7_weighted_randoms_z010-095_lgt020_vl02_area.fit'):
+            print("FILES EXIST. SKIPPING...")
+            return None
+        
+        randfile = os.path.dirname(self.outBase) + '/my_decade_run_redmapper_v0.8.7_randoms_zmask_catalog.fit'
+
+        config   = redmapper.Configuration(config)
+        weigher  = redmapper.RandomWeigher(config, randfile)
+        for lambda_cut in [5, 20]:
+            wt_randfile, wt_areafile = weigher.weight_randoms(lambda_cut)
+
+            print("Made weighted random file %s" % (wt_randfile))
+            print("Made weighted area file %s" % (wt_areafile))
+
+
+    @timeit
+    def make_redmagic(self):
+
+        self.calibrate_redmagic()
+        self.generate_redmagic()
+
+
+    @timeit
+    def calibrate_redmagic(self):
+
+        if os.path.isfile(os.path.dirname(self.outBase) + '/redmagic/my_decade_run_redmagic_calib.fit'):
+            print("File exists. Skipping....")
+            return None
+
+        #Make a new directory and duplicate config files
+        os.makedirs(os.path.dirname(self.outBase) + '/redmagic', exist_ok = True)
+        run_config  = os.path.dirname(self.outBase) + '_run/run_default.yml'
+        rmgc_config = os.path.dirname(self.outBase) + '/redmagic/run_default.yml'
+        shutil.copy(run_config, rmgc_config)
+        
+        #Rewrite lines in config
+        path = pathlib.Path(rmgc_config)
+        data = yaml.safe_load(path.read_text())
+        data["outpath"]  = os.path.dirname(self.outBase) + "/redmagic/"
+        data["catfile"]  = os.path.dirname(self.outBase) + "/my_decade_run_redmapper_v0.8.7_lgt20_vl02_catalog.fit"
+        data["redmagic_etas"]   = [0.5, 1.0]
+        data["redmagic_n0s"]    = [10.0, 4.0]
+        data["redmagic_names"]  = ['highdens', 'highlum']
+        data["redmagic_zmaxes"] = [0.75, 0.95]
+        data["redmagicfile"]    = self.outBase + '_redmagic_calib.fit'
+        data["hpix"]            = self.make_calibration_hpix()
+        data["nside"]           = 8
+
+        path.write_text(yaml.safe_dump(data, sort_keys=False))
+
+        calib = redmapper.redmagic.RedmagicCalibrator(rmgc_config)
+        calib.run(do_run = False)
+
+    @timeit
+    def generate_redmagic(self):
+
+        rmgc_config  = os.path.dirname(self.outBase) + '/redmagic/run_default_run.yml'
+        
+        #Rewrite lines in config
+        path = pathlib.Path(rmgc_config)
+        data = yaml.safe_load(path.read_text())
+        data["redmagicfile"]  = os.path.dirname(self.outBase) + '/redmagic/my_decade_run_redmagic_calib.fit'
+        path.write_text(yaml.safe_dump(data, sort_keys=False))
+        
+        run_redmagic = redmapper.redmagic.RunRedmagicTask(rmgc_config)
+        run_redmagic.run()
+
+
+    @timeit
+    def generate_zscan(self, outbase, catfile):
+        
+        run_config = os.path.dirname(self.outBase) + '_run/run_default.yml'
+        zsn_config = os.path.dirname(self.outBase) + '_run/run_zscan.yml'
+
+        shutil.copy(run_config, zsn_config)
+
+        #Rewrite lines in config
+        path = pathlib.Path(zsn_config)
+        data = yaml.safe_load(path.read_text())
+        data["catfile"] = catfile
+        data["outbase"] = outbase
+        path.write_text(yaml.safe_dump(data, sort_keys=False))
+
+        runzscan   = redmapper.RunZScan(zsn_config)
+        runzscan.run()
+        runzscan.output(savemembers = True, withversion = True)
 
 
 if __name__ == '__main__':
 
     os.environ['TMPDIR'] = '/scratch/midway3/dhayaa/RedMaPPer_TMP'
 
-    BaseRunner(outBase = os.environ['TMPDIR'] + '/Eli').go()
+    # BaseRunner(outBase = os.environ['TMPDIR'] + '/Eli').generate_zscan('my_decade_20250726', '/project/chto/chto/fordhayaa/wide_cluster_catalog_01may25.fits')
+    BaseRunner(outBase = os.environ['TMPDIR'] + '/Eli').generate_zscan('my_decade_rands_20250726', '/project/chto/chto/fordhayaa/wide_random_coords_01may25.fits')
+    # BaseRunner(outBase = os.environ['TMPDIR'] + '/Eli').go()
 
 
 
