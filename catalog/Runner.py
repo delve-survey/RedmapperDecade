@@ -3,6 +3,7 @@ import numpy as np, fitsio, h5py, matplotlib.pyplot as plt
 import healsparse as hsp, healpy as hp
 import os, re, esutil, sys, time, glob, joblib, textwrap, shutil, yaml, pathlib
 from tqdm import tqdm
+from astropy.io import fits
 
 sys.path.insert(0, os.path.dirname(__file__) + '/../') #Goes from catalog/ to mapper/ path
 
@@ -31,16 +32,16 @@ class BaseRunner:
     @timeit
     def go(self):
 
-        # self.prep_training_catalog(n_jobs = 24)
-        # self.make_all_maps()
-        # self.make_master_galaxy_catalog()
-        # self.make_spec_catalog()
-        # self.make_spec_catalog_redseq()
-        # self.make_config_yaml()
-        # self.run_redmapper_calibration()
-        # self.run_zred_pixel()
-        # self.run_zred_bkg()
-        # self.run_redmapper_pixel()
+        self.prep_training_catalog(n_jobs = 24)
+        self.make_all_maps()
+        self.make_master_galaxy_catalog()
+        self.make_spec_catalog()
+        self.make_spec_catalog_redseq()
+        self.make_config_yaml()
+        self.run_redmapper_calibration()
+        self.run_zred_pixel()
+        self.run_zred_bkg()
+        self.run_redmapper_pixel()
         self.consolidate_redmapper_pixel()
         self.make_randoms()
         self.make_redmagic()
@@ -1110,24 +1111,327 @@ class BaseRunner:
         runzscan.output(savemembers = True, withversion = True)
 
 
+class CombinedRunner(BaseRunner):
+
+    @timeit
+    def prep_training_catalog(self, n_jobs):
+        
+        BANDS = 'GRIZ'
+        keys  = []
+        keys += [f'BDF_FLUX_{B}_DERED_SFD98'     for B in BANDS]
+        keys += [f'BDF_FLUX_ERR_{B}_DERED_SFD98' for B in BANDS]
+        keys += ['RA', 'DEC', 'COADD_OBJECT_ID']
+
+        out   = {k : [] for k in keys + ['mask']}
+
+        outpath = self.outBase + '.tmp_input_cat.hdf5'
+        
+        if os.path.isfile(outpath):
+            print("FILE ALREADY EXISTS....SKIPPING....")
+            return None
+        else:
+            print("STARTING TO MAKE OUTPUT")
+
+        #Silly thing I need to do because of how I saved gold catalog from DELVE
+        def read(f, k): return f[k][k][:]
+
+        with h5py.File(f'/project/kadrlica/dhayaa/delve_dr3/delve_dr3_gold.hdf5', 'r') as f:
+
+            GLD = ( (read(f, 'EXT_MASH') >= 2) & 
+                    (read(f, 'FLAGS_FOREGROUND') == 0) &
+                    (read(f, 'FLAGS_FOOTPRINT') > 0) & 
+                    (read(f, 'FLAGS_GOLD') == 0)
+                    )
+            
+            out['RA'].append(read(f,'RA')[GLD])
+            out['DEC'].append(read(f,'DEC')[GLD])
+            out['COADD_OBJECT_ID'].append(read(f,'COADD_OBJECT_ID')[GLD])
+
+            out['BDF_FLUX_G_DERED_SFD98'].append(read(f,'BDF_FLUX_G_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 3.186))
+            out['BDF_FLUX_R_DERED_SFD98'].append(read(f,'BDF_FLUX_R_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 2.140))
+            out['BDF_FLUX_I_DERED_SFD98'].append(read(f,'BDF_FLUX_I_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.568))
+            out['BDF_FLUX_Z_DERED_SFD98'].append(read(f,'BDF_FLUX_Z_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.196))
+
+            out['BDF_FLUX_ERR_G_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_G_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 3.186))
+            out['BDF_FLUX_ERR_R_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_R_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 2.140))
+            out['BDF_FLUX_ERR_I_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_I_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.568))
+            out['BDF_FLUX_ERR_Z_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_Z_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.196))
+
+            out['mask'].append(GLD)
+
+
+        with fits.open('/project/kadrlica/dhayaa/DES/Data/y6_gold_2.2.fits') as hdu:
+            f   = hdu[1].data
+            GLD = ( (f['EXT_MASH'][:] >= 2) & 
+                    (f['FLAGS_FOREGROUND'][:] == 0) &
+                    (f['FLAGS_FOOTPRINT'][:] > 0) & 
+                    (f['FLAGS_GOLD'][:] == 0)
+                    )
+            MSK = hsp.HealSparseMap.read('/scratch/midway3/dhayaa/maglim_joint_lss-shear_mask_nside16384_NEST_v4.hsp.gz')
+            MSK = MSK.get_values_pos(f['RA'][:], f['DEC'][:], lonlat = True) > 0
+            GLD = GLD & MSK
+            
+            out['RA'].append(f['RA'][:][GLD])
+            out['DEC'].append(f['DEC'][:][GLD])
+            out['COADD_OBJECT_ID'].append(f['COADD_OBJECT_ID'][:][GLD])
+
+            out['BDF_FLUX_G_DERED_SFD98'].append(f['BDF_FLUX_G_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 3.186))
+            out['BDF_FLUX_R_DERED_SFD98'].append(f['BDF_FLUX_R_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 2.140))
+            out['BDF_FLUX_I_DERED_SFD98'].append(f['BDF_FLUX_I_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.568))
+            out['BDF_FLUX_Z_DERED_SFD98'].append(f['BDF_FLUX_Z_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.196))
+
+            out['BDF_FLUX_ERR_G_DERED_SFD98'].append(f['BDF_FLUX_ERR_G_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 3.186))
+            out['BDF_FLUX_ERR_R_DERED_SFD98'].append(f['BDF_FLUX_ERR_R_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 2.140))
+            out['BDF_FLUX_ERR_I_DERED_SFD98'].append(f['BDF_FLUX_ERR_I_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.568))
+            out['BDF_FLUX_ERR_Z_DERED_SFD98'].append(f['BDF_FLUX_ERR_Z_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.196))
+
+            out['mask'].append(GLD)
+
+            
+        if os.path.isfile(outpath): print("FILE EXISTS AT", outpath, "... OVERWRITING IT....")
+        with h5py.File(outpath, 'w') as f:
+
+            for k in out.keys(): 
+                f.create_dataset(name = k, data = np.concatenate(out[k]))
+                print("FINISHED WRITING", k)
+
+        del out
+        print("OUTPUT WRITTEN TO", outpath)
+
+        Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+        Collator.run(outpath)
+
+
+    @timeit
+    def get_fracdet_map(self):
+
+        return hsp.HealSparseMap.read("/project/chto/dhayaa/Redmapper/All_maglim_fracdet.hsp").fracdet_map(nside = 4096)
+    
+    
+    @timeit
+    def get_foreground_map(self):
+
+        return hp.read_map("/project/chto/dhayaa/decade/GOLD_Ext0.2_Star5_MCs2.fits")
+    
+
+    @timeit
+    def prepare_sys_maps(self):
+
+        for b in 'griz':
+            for sys in ['airmass', 'fwhm', 'exptime', 'skybrite', 'maglim']:
+
+                if os.path.isfile(self.outBase + f'_DR3_{b}_{sys}.hpy'):
+                    print(f"FILE DR3_{b}_{sys}.hpy EXISTS. SKIPPING...")
+                    continue
+                
+                if sys == 'exptime':
+                    text = 'sum'
+                else:
+                    text = 'wmean'
+                    
+                DR31 = hsp.HealSparseMap.read(f"/project/jfrieman/chinyi/dr3_2_decasu_maps/{sys}/delve_dr32_{b}_{sys}_{text}.hsp")
+                DR32 = hsp.HealSparseMap.read(f"/project/chihway/secco/decasu_outputs/{sys}/delve_dr311+dr312_{b}_{sys}_Nov28th.hsp")
+                Y6   = hsp.HealSparseMap.read(f"/project/kadrlica/dhayaa/DES/sys_maps/y6a2_decasu_{b}_{sys}_{text}.hs")
+
+                DR31 = DR31.generate_healpix_map(nside = 4096, nest = False)
+                DR32 = DR32.generate_healpix_map(nside = 4096, nest = False)
+                Y6   = Y6.generate_healpix_map(nside = 4096,   nest = False)
+
+                DR31 = np.where(DR31 == hp.UNSEEN, 0, DR31)
+                DR32 = np.where(DR32 == hp.UNSEEN, 0, DR32)
+                Y6   = np.where(DR32 == hp.UNSEEN, 0, Y6)
+
+                DR3  = DR31 + DR32
+                DR3  = np.where(DR3 != 0, DR3, Y6)
+                DR3  = np.where(DR3 == 0, hp.UNSEEN, DR3)
+                hp.write_map(self.outBase + f'_DR3_{b}_{sys}.hpy', DR3)
+                
+                print(f"FINISHED WRITING MAP {sys} IN BAND {b}", flush = True)
+
+        if os.path.isfile(self.outBase + f'_DR3_z_frac.hpy'): return None
+        FRACGOOD = hsp.HealSparseMap.read(self.outBase + '.decade_pixmask.hs')
+        FRACGOOD = FRACGOOD.fracdet_map(nside=4096)
+        FRACGOOD = FRACGOOD.generate_healpix_map(nside = 4096, nest = False)
+        for b in 'griz': hp.write_map(self.outBase + f'_DR3_{b}_frac.hpy', FRACGOOD)
+
+
+class DESRunner(CombinedRunner):
+
+    @timeit
+    def prep_training_catalog(self, n_jobs):
+        
+        BANDS = 'GRIZ'
+        keys  = []
+        keys += [f'BDF_FLUX_{B}_DERED_SFD98'     for B in BANDS]
+        keys += [f'BDF_FLUX_ERR_{B}_DERED_SFD98' for B in BANDS]
+        keys += ['RA', 'DEC', 'COADD_OBJECT_ID']
+
+        out   = {k : [] for k in keys + ['mask']}
+
+        outpath = self.outBase + '.tmp_input_cat.hdf5'
+        
+        if os.path.isfile(outpath):
+            print("FILE ALREADY EXISTS....SKIPPING....")
+            return None
+        else:
+            print("STARTING TO MAKE FILE..")
+
+        with fits.open('/project/kadrlica/dhayaa/DES/Data/y6_gold_2.2.fits') as hdu:
+            f   = hdu[1].data
+            GLD = ( (f['EXT_MASH'][:] >= 2) & 
+                    (f['FLAGS_FOREGROUND'][:] == 0) &
+                    (f['FLAGS_FOOTPRINT'][:] > 0) & 
+                    (f['FLAGS_GOLD'][:] == 0)
+                    )
+            
+            print("FINISHED MASK")
+
+            MSK = hsp.HealSparseMap.read('/scratch/midway3/dhayaa/maglim_joint_lss-shear_mask_nside16384_NEST_v4.hsp.gz')
+            MSK = MSK.get_values_pos(f['RA'][:], f['DEC'][:], lonlat = True) > 0
+            GLD = GLD & MSK
+
+            print("FINISHED MASK 2")
+            
+            out['RA'].append(f['RA'][:][GLD]); print("FINISHED RA")
+            out['DEC'].append(f['DEC'][:][GLD]); print("FINISHED DEC")
+            out['COADD_OBJECT_ID'].append(f['COADD_OBJECT_ID'][:][GLD]); print("FINISHED COADD_OBJECT_ID")
+
+            out['BDF_FLUX_G_DERED_SFD98'].append(f['BDF_FLUX_G_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 3.186)); print("FINISHED FLUX G")
+            out['BDF_FLUX_R_DERED_SFD98'].append(f['BDF_FLUX_R_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 2.140)); print("FINISHED FLUX R")
+            out['BDF_FLUX_I_DERED_SFD98'].append(f['BDF_FLUX_I_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.568)); print("FINISHED FLUX I")
+            out['BDF_FLUX_Z_DERED_SFD98'].append(f['BDF_FLUX_Z_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.196)); print("FINISHED FLUX Z")
+
+            out['BDF_FLUX_ERR_G_DERED_SFD98'].append(f['BDF_FLUX_ERR_G_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 3.186)); print("FINISHED FLUX ERROR G")
+            out['BDF_FLUX_ERR_R_DERED_SFD98'].append(f['BDF_FLUX_ERR_R_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 2.140)); print("FINISHED FLUX ERROR R")
+            out['BDF_FLUX_ERR_I_DERED_SFD98'].append(f['BDF_FLUX_ERR_I_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.568)); print("FINISHED FLUX ERROR I")
+            out['BDF_FLUX_ERR_Z_DERED_SFD98'].append(f['BDF_FLUX_ERR_Z_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.196)); print("FINISHED FLUX ERROR Z")
+
+            out['mask'].append(GLD)
+
+            
+        if os.path.isfile(outpath): print("FILE EXISTS AT", outpath, "... OVERWRITING IT....")
+        with h5py.File(outpath, 'w') as f:
+
+            for k in out.keys(): 
+                f.create_dataset(name = k, data = np.concatenate(out[k]))
+                print("FINISHED WRITING", k)
+
+        del out
+        print("OUTPUT WRITTEN TO", outpath)
+
+        Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+        Collator.run(outpath)
+
+
+    @timeit
+    def get_fracdet_map(self):
+
+        return hsp.HealSparseMap.read("/project/chto/dhayaa/Redmapper/All_maglim_fracdet.hsp").fracdet_map(nside = 4096)
+    
+    
+    @timeit
+    def get_foreground_map(self):
+
+        return hsp.HealSparseMap.read('/scratch/midway3/dhayaa/maglim_joint_lss-shear_mask_nside16384_NEST_v4.hsp.gz').generate_healpix_map(nside = 4096)
+
+
+class DECADERunner(BaseRunner):
+
+    @timeit
+    def prep_training_catalog(self, n_jobs):
+        
+        BANDS = 'GRIZ'
+        keys  = []
+        keys += [f'BDF_FLUX_{B}_DERED_SFD98'     for B in BANDS]
+        keys += [f'BDF_FLUX_ERR_{B}_DERED_SFD98' for B in BANDS]
+        keys += ['RA', 'DEC', 'COADD_OBJECT_ID']
+
+        out   = {k : [] for k in keys + ['mask']}
+
+        outpath = self.outBase + '.tmp_input_cat.hdf5'
+        
+        if os.path.isfile(outpath):
+            print("FILE ALREADY EXISTS....SKIPPING....")
+            return None
+
+        #Silly thing I need to do because of how I saved gold catalog from DELVE
+        def read(f, k): return f[k][k][:]
+
+        with h5py.File(f'/project/kadrlica/dhayaa/delve_dr3/delve_dr3_gold.hdf5', 'r') as f:
+
+            GLD = ( (read(f, 'EXT_MASH') >= 2) & 
+                    (read(f, 'FLAGS_FOREGROUND') == 0) &
+                    (read(f, 'FLAGS_FOOTPRINT') > 0) & 
+                    (read(f, 'FLAGS_GOLD') == 0)
+                    )
+            
+            out['RA'].append(read(f,'RA')[GLD])
+            out['DEC'].append(read(f,'DEC')[GLD])
+            out['COADD_OBJECT_ID'].append(read(f,'COADD_OBJECT_ID')[GLD])
+
+            out['BDF_FLUX_G_DERED_SFD98'].append(read(f,'BDF_FLUX_G_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 3.186))
+            out['BDF_FLUX_R_DERED_SFD98'].append(read(f,'BDF_FLUX_R_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 2.140))
+            out['BDF_FLUX_I_DERED_SFD98'].append(read(f,'BDF_FLUX_I_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.568))
+            out['BDF_FLUX_Z_DERED_SFD98'].append(read(f,'BDF_FLUX_Z_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.196))
+
+            out['BDF_FLUX_ERR_G_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_G_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 3.186))
+            out['BDF_FLUX_ERR_R_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_R_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 2.140))
+            out['BDF_FLUX_ERR_I_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_I_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.568))
+            out['BDF_FLUX_ERR_Z_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_Z_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.196))
+
+            out['mask'].append(GLD)
+
+            
+        if os.path.isfile(outpath): print("FILE EXISTS AT", outpath, "... OVERWRITING IT....")
+        with h5py.File(outpath, 'w') as f:
+
+            for k in out.keys(): 
+                f.create_dataset(name = k, data = np.concatenate(out[k]))
+                print("FINISHED WRITING", k)
+
+        del out
+        print("OUTPUT WRITTEN TO", outpath)
+
+        Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+        Collator.run(outpath)
+
+
+    @timeit
+    def get_fracdet_map(self):
+        return hsp.HealSparseMap.read("/project/chto/dhayaa/Redmapper/All_maglim_fracdet.hsp").fracdet_map(nside = 4096)
+    
+    
+    @timeit
+    def get_foreground_map(self):
+        return hp.read_map("/project/chto/dhayaa/decade/GOLD_Ext0.2_Star5_MCs2_DESY6.fits")
+
+
 if __name__ == '__main__':
 
-    os.environ['TMPDIR'] = '/scratch/midway3/dhayaa/RedMaPPer_TMP'
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--DECADE",   action = 'store_true')
+    parser.add_argument("--DES",      action = 'store_true')
+    parser.add_argument("--Combined", action = 'store_true')
+    parser.add_argument("--outdir",   action = 'store', type = str, required = True)
+
+    args = vars(parser.parse_args())
+
+    assert (args['DECADE'] + args['DES'] + args['Combined']) == 1, "Use only one of DECADE, DES, or Combined"
+
+    os.environ['TMPDIR'] = args['outdir']
+
+    if args['DECADE']:
+        Runner = DECADERunner
+    elif args['DES']:
+        Runner = DESRunner
+    elif args['Combined']:
+        Runner = CombinedRunner
+
+    os.makedirs(args['outdir'], exist_ok = True)
+    Runner(outBase = os.environ['TMPDIR'] + '/Eli').go()
 
     # BaseRunner(outBase = os.environ['TMPDIR'] + '/Eli').generate_zscan('my_decade_20250726', '/project/chto/chto/fordhayaa/wide_cluster_catalog_01may25.fits')
-    BaseRunner(outBase = os.environ['TMPDIR'] + '/Eli').generate_zscan('my_decade_rands_20250726', '/project/chto/chto/fordhayaa/wide_random_coords_01may25.fits')
+    # BaseRunner(outBase = os.environ['TMPDIR'] + '/Eli').generate_zscan('my_decade_rands_20250726', '/project/chto/chto/fordhayaa/wide_random_coords_01may25.fits')
     # BaseRunner(outBase = os.environ['TMPDIR'] + '/Eli').go()
-
-
-
-    # import time
-    # from contextlib import contextmanager
-
-    # @contextmanager
-    # def timer(label: str = "elapsed"):
-    #     start = time.perf_counter()
-    #     try:
-    #         yield                # run the body of the with-block
-    #     finally:
-    #         dt = time.perf_counter() - start
-    #         print(f"{label}: {dt:.6f} s")
