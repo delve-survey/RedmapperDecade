@@ -60,7 +60,11 @@ class BaseRunner:
         outpath = self.outBase + '.tmp_input_cat.hdf5'
         
         if os.path.isfile(outpath):
-            print("FILE ALREADY EXISTS....SKIPPING....")
+            print("FILE ALREADY EXISTS....RUNNING JUST COLLATOR AGAIN....")
+
+            Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+            Collator.run(outpath)
+
             return None
 
         for file in ['metacal_gold_combined_20240209.hdf', 'metacal_gold_combined_20241003.hdf']:
@@ -1088,7 +1092,7 @@ class BaseRunner:
         path.write_text(yaml.safe_dump(data, sort_keys=False))
         
         run_redmagic = redmapper.redmagic.RunRedmagicTask(rmgc_config)
-        run_redmagic.run()
+        run_redmagic.run(n_randoms = 50_000_000)
 
 
     @timeit
@@ -1126,8 +1130,14 @@ class CombinedRunner(BaseRunner):
 
         outpath = self.outBase + '.tmp_input_cat.hdf5'
         
+        n_jobs = 8
+        print(f"FORCING n_jobs = {n_jobs} BECAUSE DECAM IS A LARGE DATASET AND WE GET MEMORY ERRORS....")
+
         if os.path.isfile(outpath):
-            print("FILE ALREADY EXISTS....SKIPPING....")
+            print("FILE ALREADY EXISTS....RUNNING JUST COLLATOR AGAIN....")
+
+            Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+            Collator.run(outpath)
             return None
         else:
             print("STARTING TO MAKE OUTPUT")
@@ -1191,7 +1201,12 @@ class CombinedRunner(BaseRunner):
     @timeit
     def get_foreground_map(self):
 
-        return hp.read_map("/project/chto/dhayaa/decade/GOLD_Ext0.2_Star5_MCs2.fits")
+        DEC = hp.read_map("/project/chihway/dhayaa/DECADE/Foreground_Masks/GOLD_Ext0.2_Star5_MCs2.fits").astype(int)
+        DES = hsp.HealSparseMap.read("/project/kadrlica/dhayaa/y6a2_foreground_mask_v1.4.hs").generate_healpix_map(nside = 4096, nest = False)
+        DES = np.where(DES == hp.UNSEEN, 0, DES).astype(int)
+        M   = (DES == 0) & (DEC == 0)
+
+        return M
     
 
     @timeit
@@ -1219,7 +1234,7 @@ class CombinedRunner(BaseRunner):
 
                 DR31 = np.where(DR31 == hp.UNSEEN, 0, DR31)
                 DR32 = np.where(DR32 == hp.UNSEEN, 0, DR32)
-                Y6   = np.where(DR32 == hp.UNSEEN, 0, Y6)
+                Y6   = np.where(Y6 == hp.UNSEEN,   0, Y6)
 
                 DR3  = DR31 + DR32
                 DR3  = np.where(DR3 != 0, DR3, Y6)
@@ -1251,7 +1266,10 @@ class DESRunner(CombinedRunner):
         outpath = self.outBase + '.tmp_input_cat.hdf5'
         
         if os.path.isfile(outpath):
-            print("FILE ALREADY EXISTS....SKIPPING....")
+            print("FILE ALREADY EXISTS....RUNNING JUST COLLATOR AGAIN....")
+
+            Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+            Collator.run(outpath)
             return None
         else:
             print("STARTING TO MAKE FILE..")
@@ -1312,7 +1330,10 @@ class DESRunner(CombinedRunner):
     @timeit
     def get_foreground_map(self):
 
-        return hsp.HealSparseMap.read('/scratch/midway3/dhayaa/maglim_joint_lss-shear_mask_nside16384_NEST_v4.hsp.gz').generate_healpix_map(nside = 4096, nest = False)
+        DES = hsp.HealSparseMap.read('/scratch/midway3/dhayaa/maglim_joint_lss-shear_mask_nside16384_NEST_v4.hsp.gz').generate_healpix_map(nside = 4096, nest = False)
+        DES = np.invert(DES > 0).astype(float)
+        
+        return DES
 
 
 class DECADERunner(BaseRunner):
@@ -1331,7 +1352,10 @@ class DECADERunner(BaseRunner):
         outpath = self.outBase + '.tmp_input_cat.hdf5'
         
         if os.path.isfile(outpath):
-            print("FILE ALREADY EXISTS....SKIPPING....")
+            print("FILE ALREADY EXISTS....RUNNING JUST COLLATOR AGAIN....")
+
+            Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+            Collator.run(outpath)
             return None
 
         #Silly thing I need to do because of how I saved gold catalog from DELVE
