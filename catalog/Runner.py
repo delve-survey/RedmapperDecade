@@ -25,9 +25,14 @@ def timeit(func):
 
 class BaseRunner:
 
-    def __init__(self, outBase, seed = 42):
-        self.outBase = outBase
-        self.seed    = seed
+    def __init__(self, outBase, seed = 42, calib_dir = None):
+        self.outBase    = outBase
+        self.seed       = seed
+        self.calib_dir  = calib_dir
+
+        if self.calib_dir[-1] == '/':
+            self.calib_dir = self.calib_dir[:-1]
+            print("Removing backspace from calib_dir")
 
     @timeit
     def go(self):
@@ -848,9 +853,17 @@ class BaseRunner:
     @timeit
     def run_redmapper_calibration(self):
 
-        calib = redmapper.calibration.RedmapperCalibrator(self.outBase + '_config.yaml')
-        calib.run()
-
+        if self.calib_dir is None:
+            calib = redmapper.calibration.RedmapperCalibrator(self.outBase + '_config.yaml')
+            calib.run()
+        else:
+            shutil.copy(self.calib_dir + '_run/my_decade_run_bkg.fit',         os.path.dirname(self.outBase) + '_run/my_decade_run_bkg.fit')
+            shutil.copy(self.calib_dir + '/my_decade_bkg_color.fit',           os.path.dirname(self.outBase) + '/my_decade_bkg_color.fit')
+            shutil.copy(self.calib_dir + '/my_decade_iter3_pars.fit',          os.path.dirname(self.outBase) + '/my_decade_iter3_pars.fit') 
+            shutil.copy(self.calib_dir + '/my_decade_zspec_redgals_model.fit', os.path.dirname(self.outBase) + '/my_decade_zspec_redgals_model.fit') 
+            shutil.copy(self.calib_dir + '/my_decade_iter3_wcen.fit',          os.path.dirname(self.outBase) + '/my_decade_iter3_wcen.fit') 
+            shutil.copy(self.calib_dir + '/my_decade_iter3_zlambda.fit',       os.path.dirname(self.outBase) + '/my_decade_iter3_zlambda.fit') 
+            print("COPIED REDMAPPER CALIBRATION OVER FROM", self.calib_dir)
 
     @timeit
     def run_zred_pixel(self, n_jobs = -1):
@@ -1067,6 +1080,8 @@ class BaseRunner:
         data = yaml.safe_load(path.read_text())
         data["outpath"]  = os.path.dirname(self.outBase) + "/redmagic/"
         data["catfile"]  = os.path.dirname(self.outBase) + "/my_decade_run_redmapper_v0.8.7_lgt20_vl02_catalog.fit"
+        data["redmagic_constchis"]    = [8.0, 8.0]
+        data["redmagic_use_constchi"] = True
         data["redmagic_etas"]   = [0.5, 1.0]
         data["redmagic_n0s"]    = [10.0, 4.0]
         data["redmagic_names"]  = ['highdens', 'highlum']
@@ -1077,8 +1092,13 @@ class BaseRunner:
 
         path.write_text(yaml.safe_dump(data, sort_keys=False))
 
-        calib = redmapper.redmagic.RedmagicCalibrator(rmgc_config)
-        calib.run(do_run = False)
+        if self.calib_dir is None:
+            calib = redmapper.redmagic.RedmagicCalibrator(rmgc_config)
+            calib.run(do_run = False)
+        else:
+            shutil.copy(self.calib_dir + '/redmagic/my_decade_run_redmagic_calib.fit', 
+                        os.path.dirname(self.outBase) + '/redmagic/my_decade_run_redmagic_calib.fit')
+            print("COPIED REDMAGIC CALIBRATION OVER FROM", self.calib_dir)
 
     @timeit
     def generate_redmagic(self):
@@ -1092,7 +1112,7 @@ class BaseRunner:
         path.write_text(yaml.safe_dump(data, sort_keys=False))
         
         run_redmagic = redmapper.redmagic.RunRedmagicTask(rmgc_config)
-        run_redmagic.run(n_randoms = 50_000_000)
+        run_redmagic.run(n_randoms = 250_000_000, clobber = True)
 
 
     @timeit
@@ -1134,10 +1154,10 @@ class CombinedRunner(BaseRunner):
         print(f"FORCING n_jobs = {n_jobs} BECAUSE DECAM IS A LARGE DATASET AND WE GET MEMORY ERRORS....")
 
         if os.path.isfile(outpath):
-            print("FILE ALREADY EXISTS....RUNNING JUST COLLATOR AGAIN....")
+            print("FILE ALREADY EXISTS....NOT RUNNING COLLATOR....")
 
-            Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
-            Collator.run(outpath)
+            # Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+            # Collator.run(outpath)
             return None
         else:
             print("STARTING TO MAKE OUTPUT")
@@ -1204,7 +1224,7 @@ class CombinedRunner(BaseRunner):
         DEC = hp.read_map("/project/chihway/dhayaa/DECADE/Foreground_Masks/GOLD_Ext0.2_Star5_MCs2.fits").astype(int)
         DES = hsp.HealSparseMap.read("/project/kadrlica/dhayaa/y6a2_foreground_mask_v1.4.hs").generate_healpix_map(nside = 4096, nest = False)
         DES = np.where(DES == hp.UNSEEN, 0, DES).astype(int)
-        M   = (DES == 0) & (DEC == 0)
+        M   = np.invert((DES == 0) & (DEC == 0)) #Needs to be 0 for select and 1 for discard
 
         return M
     
@@ -1268,8 +1288,8 @@ class DESRunner(CombinedRunner):
         if os.path.isfile(outpath):
             print("FILE ALREADY EXISTS....RUNNING JUST COLLATOR AGAIN....")
 
-            Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
-            Collator.run(outpath)
+            # Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+            # Collator.run(outpath)
             return None
         else:
             print("STARTING TO MAKE FILE..")
@@ -1354,8 +1374,8 @@ class DECADERunner(BaseRunner):
         if os.path.isfile(outpath):
             print("FILE ALREADY EXISTS....RUNNING JUST COLLATOR AGAIN....")
 
-            Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
-            Collator.run(outpath)
+            # Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+            # Collator.run(outpath)
             return None
 
         #Silly thing I need to do because of how I saved gold catalog from DELVE
@@ -1415,10 +1435,11 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--DECADE",   action = 'store_true')
-    parser.add_argument("--DES",      action = 'store_true')
-    parser.add_argument("--Combined", action = 'store_true')
-    parser.add_argument("--outdir",   action = 'store', type = str, required = True)
+    parser.add_argument("--DECADE",    action = 'store_true')
+    parser.add_argument("--DES",       action = 'store_true')
+    parser.add_argument("--Combined",  action = 'store_true')
+    parser.add_argument("--outdir",    action = 'store', type = str, required = True)
+    parser.add_argument("--calibdir",  action = 'store', type = str, default = None)
 
     args = vars(parser.parse_args())
 
@@ -1434,8 +1455,11 @@ if __name__ == '__main__':
         Runner = CombinedRunner
 
     os.makedirs(args['outdir'], exist_ok = True)
-    Runner(outBase = os.environ['TMPDIR'] + '/Eli').go()
+    Runner(outBase = os.environ['TMPDIR'] + '/Eli', calib_dir = args['calibdir']).go()
 
     # BaseRunner(outBase = os.environ['TMPDIR'] + '/Eli').generate_zscan('my_decade_20250726', '/project/chto/chto/fordhayaa/wide_cluster_catalog_01may25.fits')
     # BaseRunner(outBase = os.environ['TMPDIR'] + '/Eli').generate_zscan('my_decade_rands_20250726', '/project/chto/chto/fordhayaa/wide_random_coords_01may25.fits')
     # BaseRunner(outBase = os.environ['TMPDIR'] + '/Eli').go()
+
+
+    # find ./Files_run/ -type f \( -iname '*.yaml' -o -iname '*.yml' \) -print0 | xargs -0 perl -pi.bak -e 's/\QDES_20250828\E/DES_20250918_decadecalib/g'
