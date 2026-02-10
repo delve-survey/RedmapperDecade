@@ -1,9 +1,10 @@
 import redmapper
-import numpy as np, fitsio, h5py, matplotlib.pyplot as plt
+import numpy as np, fitsio, h5py, matplotlib.pyplot as plt, pandas as pd
 import healsparse as hsp, healpy as hp
 import os, re, esutil, sys, time, glob, joblib, textwrap, shutil, yaml, pathlib
 from tqdm import tqdm
 from astropy.io import fits
+from sklearn.neighbors import BallTree
 
 sys.path.insert(0, os.path.dirname(__file__) + '/../') #Goes from catalog/ to mapper/ path
 
@@ -30,9 +31,10 @@ class BaseRunner:
         self.seed       = seed
         self.calib_dir  = calib_dir
 
-        if self.calib_dir[-1] == '/':
-            self.calib_dir = self.calib_dir[:-1]
-            print("Removing backspace from calib_dir")
+        if self.calib_dir != None:
+            if self.calib_dir[-1] == '/':
+                self.calib_dir = self.calib_dir[:-1]
+                print("Removing backspace from calib_dir")
 
     @timeit
     def go(self):
@@ -394,6 +396,7 @@ class BaseRunner:
                 # Apply reddening
                 #acorr = basic['ebv_sfd98'] * a_lambda[i]
 
+            #Dhayaa: Dont need this cause our fluxes are already deredenned!!!
             #galaxies['mag'][:, i] = galaxies['mag'][:, i] - acorr
 
             galaxies['refmag']     = galaxies['mag'][:, ref_ind]
@@ -427,7 +430,7 @@ class BaseRunner:
             # print(np.max(galaxies[gd]['mag']),np.max(galaxies[gd]['mag_err']), flush=True)
 
         maker.finalize_catalog()
-    
+
     @timeit
     def make_spec_catalog(self):
 
@@ -435,27 +438,75 @@ class BaseRunner:
             print("FOUND ALL SPECZ CATALOG. SKIPPING MAKE CATALOG...")
             return None
 
-        specz = fitsio.read("/project/chto/dhayaa/decade/specz/BOSS_eBOSS.fits")
-        specz_DESI1 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/BGS_BRIGHT-21.5_NGC_clustering.dat.fits")
-        specz_DESI2 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/BGS_BRIGHT-21.5_SGC_clustering.dat.fits")
-        specz_DESI3 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/LRG_NGC_clustering.dat.fits")
-        specz_DESI4 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/LRG_SGC_clustering.dat.fits")
-        specz_DESI5 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/ELG_LOPnotqso_NGC_clustering.dat.fits")
-        specz_DESI6 = fitsio.read("/project/chto/dhayaa/decade/specz/DESI/ELG_LOPnotqso_SGC_clustering.dat.fits")
+        MATCHING_THRESHOLD = 1 #in arcsec
 
+        Julia = pd.read_csv('/project/chihway/dhayaa/DECADE/BRPORTAL_E_6315_18670.csv', low_memory = False)
+        Julia = Julia[Julia.FLAG_DES == 4].reset_index(drop = True) #Same cuts as DES
 
-        spec_dtype = [('ra', 'f8'), ('dec', 'f8'), ('z', 'f4'), ('z_err', 'f4')]
+        DESI  = []
+        Names = ['BGS_ANY', 'LRG', 'ELG_LOPnotqso', 'QSO'] #Numbers match Table 2 of https://arxiv.org/pdf/2411.12020
+        for n in Names:
+            paths = (glob.glob(f'/project2/chihway/dhayaa/DESI/{n}_NGC_clustering.dat.fits') + 
+                     glob.glob(f'/project2/chihway/dhayaa/DESI/{n}_SGC_clustering.dat.fits'))
+            
+            print(n, paths)
+            for p in paths:
+                X = fitsio.read(p)
+                DESI.append(pd.DataFrame({'RA' : X['RA'], 'DEC' : X['DEC'], 'SOURCE' : 'DESI_' + n, 'Z' : X['Z']}))
+            
+        DESI = pd.concat(DESI, ignore_index = True)
+        DESI = DESI[DESI.Z < 2.1].reset_index(drop = True) #Matches the cut z < 2.1 for QSOs in Table 2 here, https://arxiv.org/pdf/2411.12020
+        Tree = BallTree(np.vstack([Julia['DEC'], Julia['RA']]).T * np.pi/180, leaf_size = 2, metric = "haversine")
 
-        allspec    = np.zeros(specz.size + specz_DESI1.size + specz_DESI2.size + specz_DESI3.size + 
-                              specz_DESI4.size + specz_DESI5.size + specz_DESI6.size, dtype = spec_dtype)
-        for item1, item2 in zip(['ra','dec','z'], ['RA','DEC','Z']):
-            allspec[item1] = np.r_[specz[item2], specz_DESI1[item2], specz_DESI2[item2],specz_DESI3[item2],
-                                   specz_DESI4[item2], specz_DESI5[item2], specz_DESI6[item2]]
+        d = []
+        j = []
 
-        allspec['z_err'] = 1e-4
+        Nsize  = len(DESI)
+        N_per_batch = 500_000
+        Nbatches = Nsize // N_per_batch + 1
 
-        allspec = allspec[allspec['z'] > 0.01] #Remove very low redshifts. Use 0.01 to remove stars.
-        fitsio.write(self.outBase + ".all_specz.fits", allspec, clobber = True)
+        def one_step(i):
+
+            s = slice(i*N_per_batch, (i+1)*N_per_batch)
+
+            r = Tree.query(np.vstack([DESI['DEC'].values[s], DESI['RA'].values[s]]).T * np.pi/180, k = 1)
+
+            n = Tree.query_radius(np.vstack([DESI['DEC'].values[s], DESI['RA'].values[s]]).T * np.pi/180, 
+                                  r = MATCHING_THRESHOLD * np.pi/180 / 60 / 60, count_only = True)
+            
+            print(i, np.average(n == 1), np.average(n == 2), np.average(n == 3))
+
+            return r
+
+        res = joblib.Parallel(n_jobs = os.cpu_count(), verbose = 10)(joblib.delayed(one_step)(i) for i in range(Nbatches))
+
+        for r in res:
+            d.append(r[0][:, 0])
+            j.append(r[1][:, 0])
+
+        d = np.concatenate(d) * 180/np.pi * 60*60 #convert to arcsec
+        j = np.concatenate(j)
+
+        print(f"FOUND {np.sum(d < MATCHING_THRESHOLD)} MATCHES")
+
+        print(Julia['SOURCE'][j[d < MATCHING_THRESHOLD]].value_counts())
+        print(Julia['SOURCE'].value_counts())
+
+        Julia = Julia.drop(index = np.unique(j[d < MATCHING_THRESHOLD]).astype(int))
+        Julia = Julia.reset_index(drop = True) 
+        Julia = pd.concat([Julia, DESI])
+
+        print(Julia['SOURCE'].value_counts())
+
+        Final = np.zeros(len(Julia), dtype = [('ra', 'f8'), ('dec', 'f8'), ('z', 'f4'), ('z_err', 'f4')])
+        Final['ra']     = Julia['RA']
+        Final['dec']    = Julia['DEC']
+        Final['z']      = Julia['Z']
+        Final['z_err']  = 1e-4
+
+        Final = Final[Final['z'] > 0.01] #Remove very low redshifts. Use 0.01 to remove stars.
+        fitsio.write(self.outBase + ".all_specz.fits", Final, clobber = True)
+    
 
     @timeit
     def make_spec_catalog_redseq(self):
@@ -597,6 +648,7 @@ class BaseRunner:
         border: 0.0
 
         # Reference magnitude (band) name
+        refind: 3
         refmag: z
 
         # Redshift range [lo, hi]
@@ -820,9 +872,9 @@ class BaseRunner:
         # rmask_0 in rmask = rmask_0 * (lambda / 100) ^ rmask_beta * (z_lambda / rmask_zpivot)^rmask_gamma
         #  relation.  This sets the radius to which member galaxies are masked in percolation.
         #  This should be >= percolation_r0.  Default is 1.5
-        percolation_rmask_0: 1.5
+        percolation_rmask_0: 1.95
         # beta in rmask relation
-        percolation_rmask_beta: 0.2
+        percolation_rmask_beta: 0.45
         # gamma in rmask relation
         percolation_rmask_gamma: 0.0
         # zpivot in rmask relation
@@ -1099,6 +1151,28 @@ class BaseRunner:
             shutil.copy(self.calib_dir + '/redmagic/my_decade_run_redmagic_calib.fit', 
                         os.path.dirname(self.outBase) + '/redmagic/my_decade_run_redmagic_calib.fit')
             print("COPIED REDMAGIC CALIBRATION OVER FROM", self.calib_dir)
+
+            shutil.copy(self.calib_dir + '/redmagic/run_default_run.yaml', 
+                        os.path.dirname(self.outBase) + '/redmagic/run_default_run.yaml')
+
+            path = pathlib.Path(os.path.dirname(self.outBase) + '/redmagic/run_default_run.yaml')
+            data = yaml.safe_load(path.read_text())
+
+            for k in data:
+                
+                if isinstance(data[k], str):
+                    data[k] = data[k].replace(self.calib_dir, os.path.dirname(self.outBase))
+                
+                elif isinstance(data[k], list):
+
+                    if len(data[k]) == 0: continue
+
+                    if isinstance(data[k][0], str):
+                        data[k] = [x.replace(self.calib_dir, os.path.dirname(self.outBase)) for x in data[k]]
+                
+            path.write_text(yaml.safe_dump(data, sort_keys=False))
+
+            print("COPIED REDMAGIC CONFIG OVER FROM", self.calib_dir)
 
     @timeit
     def generate_redmagic(self):
