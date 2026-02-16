@@ -648,7 +648,6 @@ class BaseRunner:
         border: 0.0
 
         # Reference magnitude (band) name
-        refind: 3
         refmag: z
 
         # Redshift range [lo, hi]
