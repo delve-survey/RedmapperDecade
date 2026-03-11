@@ -1,0 +1,219 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+DepthFunction	elidestools/des_depth/__init__.py	/^from .depthFunction import DepthFunction$/;"	i
+DepthFunction	elidestools/des_depth/depthFunction.py	/^class DepthFunction(object):$/;"	c
+DepthFunction	elidestools/des_depth/errorModels.py	/^from .depthFunction import DepthFunction$/;"	i
+MakeMap	elidestools/des_depth/__init__.py	/^from .makeMap import MakeMap$/;"	i
+MakeMap	elidestools/des_depth/makeMap.py	/^class MakeMap(object):$/;"	c
+__call__	elidestools/des_depth/depthFunction.py	/^    def __call__(self, x):$/;"	m	class:DepthFunction	file:
+__init__	elidestools/des_depth/depthFunction.py	/^    def __init__(self,mag,magErr,zp,nSig):$/;"	m	class:DepthFunction
+__init__	elidestools/des_depth/makeMap.py	/^    def __init__(self, depthFile, sysPath, sysTemplate, outBase,$/;"	m	class:MakeMap
+aLambda	scripts/desDepthMakeDepthMap.py	/^                                 aLambda=aLambda)$/;"	v
+aLambda	scripts/desDepthMakeDepthMap.py	/^    aLambda = []$/;"	v
+aLambdaStr	scripts/desDepthMakeDepthMap.py	/^    aLambdaStr = args.aLambda.split(',')$/;"	v
+absolute_import	elidestools/des_depth/__init__.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+absolute_import	elidestools/des_depth/catalogPixelProcess.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+absolute_import	elidestools/des_depth/depthFunction.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+absolute_import	elidestools/des_depth/errorModels.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+absolute_import	elidestools/des_depth/expLimit.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+absolute_import	elidestools/des_depth/makeMap.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+absolute_import	elidestools/des_depth/pixelConsolidate.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+absolute_import	scripts/desDepthCatalogPixelProcess.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+absolute_import	scripts/desDepthExpLimitCalc.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+absolute_import	scripts/desDepthGeneratePixelProcessJobArray.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+absolute_import	scripts/desDepthMakeDepthMap.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+absolute_import	scripts/desDepthPixelConsolidate.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+applyErrorModel	elidestools/des_depth/__init__.py	/^from .errorModels import applyErrorModel$/;"	i
+applyErrorModel	elidestools/des_depth/errorModels.py	/^def applyErrorModel(pars, magIn, noNoise=False, lnscat=None):$/;"	f
+argparse	scripts/desDepthCatalogPixelProcess.py	/^import argparse$/;"	i
+argparse	scripts/desDepthExpLimitCalc.py	/^import argparse$/;"	i
+argparse	scripts/desDepthGeneratePixelProcessJobArray.py	/^import argparse$/;"	i
+argparse	scripts/desDepthMakeDepthMap.py	/^import argparse$/;"	i
+argparse	scripts/desDepthPixelConsolidate.py	/^import argparse$/;"	i
+argparse	scripts/y6a1_collate_gold_1_0.py	/^import argparse$/;"	i
+argparse	scripts/y6a1_collate_gold_2_0.py	/^import argparse$/;"	i
+argparse	scripts/y6a1_collate_raw_bd.py	/^import argparse$/;"	i
+argparse	scripts/y6a1_collate_raw_summary.py	/^import argparse$/;"	i
+args	scripts/desDepthCatalogPixelProcess.py	/^args = parser.parse_args()$/;"	v
+args	scripts/desDepthExpLimitCalc.py	/^args = parser.parse_args()$/;"	v
+args	scripts/desDepthGeneratePixelProcessJobArray.py	/^args = parser.parse_args()$/;"	v
+args	scripts/desDepthMakeDepthMap.py	/^    args = parser.parse_args()$/;"	v
+args	scripts/desDepthPixelConsolidate.py	/^args = parser.parse_args()$/;"	v
+args	scripts/y6a1_collate_gold_1_0.py	/^    args=parser.parse_args()$/;"	v
+args	scripts/y6a1_collate_gold_2_0.py	/^    args=parser.parse_args()$/;"	v
+args	scripts/y6a1_collate_raw_bd.py	/^    args=parser.parse_args()$/;"	v
+args	scripts/y6a1_collate_raw_summary.py	/^    args=parser.parse_args()$/;"	v
+bandList	scripts/desDepthCatalogPixelProcess.py	/^                              bandList=bandList,$/;"	v
+bandList	scripts/desDepthCatalogPixelProcess.py	/^bandList = args.bands.split(',')$/;"	v
+bandList	scripts/desDepthExpLimitCalc.py	/^bandList = args.bands.split(',')$/;"	v
+bands	scripts/desDepthMakeDepthMap.py	/^                                 bands=bands,$/;"	v
+bands	scripts/desDepthMakeDepthMap.py	/^    bands = args.bands.split(',')$/;"	v
+bdFiles	scripts/y6a1_collate_raw_bd.py	/^    bdFiles = glob.glob(args.globstr)$/;"	v
+bdSizeFileType	scripts/desDepthCatalogPixelProcess.py	/^                              bdSizeFileType=args.bdSizeFileType)$/;"	v
+calcErrorModel	elidestools/des_depth/__init__.py	/^from .errorModels import calcErrorModel$/;"	i
+calcErrorModel	elidestools/des_depth/catalogPixelProcess.py	/^from .errorModels import calcErrorModel$/;"	i
+calcErrorModel	elidestools/des_depth/errorModels.py	/^def calcErrorModel(_mag, _magErr, nSig=10.0, doPlot=False, nTrial=100, calcErr=False,$/;"	f
+catalogPixelProcess	elidestools/des_depth/__init__.py	/^from .catalogPixelProcess import catalogPixelProcess$/;"	i
+catalogPixelProcess	elidestools/des_depth/catalogPixelProcess.py	/^def catalogPixelProcess(pixFileBase, outBase, typeName, fluxCol, errCol, nSide,$/;"	f
+dataBinner	elidestools/des_depth/expLimit.py	/^def dataBinner(x,y,binSize,xRange,nTrial=100,xNorm=-1.0,minPerBin=5):$/;"	f
+deresMap	elidestools/des_depth/makeMap.py	/^    def deresMap(self, mapFine, nSide, minFrac=0.8, minSub=1, nest=False,$/;"	m	class:MakeMap
+des_depth	scripts/desDepthCatalogPixelProcess.py	/^import elidestools.des_depth as des_depth$/;"	i
+des_depth	scripts/desDepthExpLimitCalc.py	/^import elidestools.des_depth as des_depth$/;"	i
+des_depth	scripts/desDepthMakeDepthMap.py	/^import elidestools.des_depth as des_depth$/;"	i
+des_depth	scripts/desDepthPixelConsolidate.py	/^import elidestools.des_depth as des_depth$/;"	i
+division	elidestools/des_depth/__init__.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+division	elidestools/des_depth/catalogPixelProcess.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+division	elidestools/des_depth/depthFunction.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+division	elidestools/des_depth/errorModels.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+division	elidestools/des_depth/expLimit.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+division	elidestools/des_depth/makeMap.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+division	elidestools/des_depth/pixelConsolidate.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+division	scripts/desDepthCatalogPixelProcess.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+division	scripts/desDepthExpLimitCalc.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+division	scripts/desDepthGeneratePixelProcessJobArray.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+division	scripts/desDepthMakeDepthMap.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+division	scripts/desDepthPixelConsolidate.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+ebvFile	scripts/desDepthMakeDepthMap.py	/^                                 ebvFile=args.ebvFile,$/;"	v
+elidestools	scripts/desDepthCatalogPixelProcess.py	/^import elidestools.des_depth as des_depth$/;"	i
+elidestools	scripts/desDepthExpLimitCalc.py	/^import elidestools.des_depth as des_depth$/;"	i
+elidestools	scripts/desDepthMakeDepthMap.py	/^import elidestools.des_depth as des_depth$/;"	i
+elidestools	scripts/desDepthPixelConsolidate.py	/^import elidestools.des_depth as des_depth$/;"	i
+elidestools	scripts/y6a1_collate_gold_1_0.py	/^import elidestools$/;"	i
+elidestools	scripts/y6a1_collate_gold_2_0.py	/^import elidestools$/;"	i
+elidestools	scripts/y6a1_collate_raw_bd.py	/^import elidestools$/;"	i
+elidestools	scripts/y6a1_collate_raw_summary.py	/^import elidestools$/;"	i
+ensemble	elidestools/des_depth/makeMap.py	/^from sklearn import ensemble$/;"	i
+esutil	elidestools/des_depth/catalogPixelProcess.py	/^import esutil$/;"	i
+esutil	elidestools/des_depth/expLimit.py	/^import esutil$/;"	i
+esutil	elidestools/des_depth/makeMap.py	/^    import esutil$/;"	i
+esutil	elidestools/des_depth/makeMap.py	/^import esutil$/;"	i
+expLimit	elidestools/des_depth/__init__.py	/^from .expLimit import expLimit$/;"	i
+expLimit	elidestools/des_depth/expLimit.py	/^def expLimit(depthFile, bands, npixMax, minNGal=50, pivot=23.0):$/;"	f
+fitsio	elidestools/des_depth/catalogPixelProcess.py	/^import fitsio$/;"	i
+fitsio	elidestools/des_depth/expLimit.py	/^import fitsio$/;"	i
+fitsio	elidestools/des_depth/makeMap.py	/^import fitsio$/;"	i
+fitsio	elidestools/des_depth/pixelConsolidate.py	/^import fitsio$/;"	i
+gaussFunction	elidestools/des_depth/makeMap.py	/^def gaussFunction(x, *p):$/;"	f
+glob	scripts/desDepthGeneratePixelProcessJobArray.py	/^import glob$/;"	i
+glob	scripts/desDepthPixelConsolidate.py	/^import glob$/;"	i
+glob	scripts/y6a1_collate_gold_1_0.py	/^import glob$/;"	i
+glob	scripts/y6a1_collate_gold_2_0.py	/^import glob$/;"	i
+glob	scripts/y6a1_collate_raw_bd.py	/^import glob$/;"	i
+glob	scripts/y6a1_collate_raw_summary.py	/^import glob$/;"	i
+goldFiles	scripts/y6a1_collate_gold_1_0.py	/^    goldFiles = glob.glob(args.globstr)$/;"	v
+goldFiles	scripts/y6a1_collate_gold_2_0.py	/^    goldFiles = glob.glob(args.globstr)$/;"	v
+histoGauss	elidestools/des_depth/makeMap.py	/^def histoGauss(ax,array):$/;"	f
+hp	elidestools/des_depth/catalogPixelProcess.py	/^import healpy as hp$/;"	i
+hp	elidestools/des_depth/makeMap.py	/^import healpy as hp$/;"	i
+hp	elidestools/des_depth/pixelConsolidate.py	/^import healpy as hp$/;"	i
+jf	scripts/desDepthGeneratePixelProcessJobArray.py	/^jf=open(jobFile,"w")$/;"	v
+jobFile	scripts/desDepthGeneratePixelProcessJobArray.py	/^jobFile = '%s\/%s.job' % (jobPath, args.outBase)$/;"	v
+jobPath	scripts/desDepthGeneratePixelProcessJobArray.py	/^jobPath = '%s\/jobs' % (outputPath)$/;"	v
+least_squares	elidestools/des_depth/expLimit.py	/^from scipy.optimize import least_squares$/;"	i
+line	scripts/desDepthGeneratePixelProcessJobArray.py	/^    line = '%s -G' % (line)$/;"	v
+line	scripts/desDepthGeneratePixelProcessJobArray.py	/^    line = '%s -N %d' % (line, args.nSidePixFile)$/;"	v
+line	scripts/desDepthGeneratePixelProcessJobArray.py	/^    line = '%s -S %s' % (line, args.bdSizeFileType)$/;"	v
+line	scripts/desDepthGeneratePixelProcessJobArray.py	/^    line = '%s -b %s' % (line, args.bands)$/;"	v
+line	scripts/desDepthGeneratePixelProcessJobArray.py	/^    line = '%s -g' % (line)$/;"	v
+line	scripts/desDepthGeneratePixelProcessJobArray.py	/^    line = '%s -n %d' % (line, args.nSide)$/;"	v
+line	scripts/desDepthGeneratePixelProcessJobArray.py	/^    line = '%s -s %s' % (line, args.s2nCut)$/;"	v
+line	scripts/desDepthGeneratePixelProcessJobArray.py	/^line = 'desDepthCatalogPixelProcess.py -p ${pixarr[$LSB_JOBINDEX-1]} -o %s\/%s -f %s -e %s -t %s' % (outputPath, args.outBase, args.fluxCol, args.errCol, args.typeName)$/;"	v
+maglimType	scripts/desDepthMakeDepthMap.py	/^                                 maglimType=args.maglimType,$/;"	v
+mapMaker	scripts/desDepthMakeDepthMap.py	/^    mapMaker = des_depth.MakeMap(args.depthFile,$/;"	v
+matplotlib	elidestools/des_depth/errorModels.py	/^import matplotlib.pyplot as plt$/;"	i
+matplotlib	elidestools/des_depth/expLimit.py	/^import matplotlib.pyplot as plt$/;"	i
+matplotlib	elidestools/des_depth/makeMap.py	/^    import matplotlib.pyplot as plt$/;"	i
+matplotlib	elidestools/des_depth/makeMap.py	/^import matplotlib.pyplot as plt$/;"	i
+minGalFit	scripts/desDepthMakeDepthMap.py	/^                                 minGalFit=args.minGalFit,$/;"	v
+nSidePixFile	scripts/desDepthCatalogPixelProcess.py	/^                              nSidePixFile=args.nSidePixFile,$/;"	v
+noGoldFlags	scripts/desDepthCatalogPixelProcess.py	/^                              noGoldFlags=args.noGoldFlags,$/;"	v
+np	elidestools/des_depth/catalogPixelProcess.py	/^import numpy as np$/;"	i
+np	elidestools/des_depth/depthFunction.py	/^import numpy as np$/;"	i
+np	elidestools/des_depth/errorModels.py	/^import numpy as np$/;"	i
+np	elidestools/des_depth/expLimit.py	/^import numpy as np$/;"	i
+np	elidestools/des_depth/makeMap.py	/^import numpy as np$/;"	i
+np	elidestools/des_depth/pixelConsolidate.py	/^import numpy as np$/;"	i
+npixFit	scripts/desDepthMakeDepthMap.py	/^                                 npixFit=npixFit,$/;"	v
+npixFit	scripts/desDepthMakeDepthMap.py	/^    npixFit = []$/;"	v
+npixFitStr	scripts/desDepthMakeDepthMap.py	/^    npixFitStr = args.npixFit.split(',')$/;"	v
+npixMax	scripts/desDepthExpLimitCalc.py	/^npixMax = [int(x) for x in args.npixMax.split(',')]$/;"	v
+optimize	elidestools/des_depth/errorModels.py	/^import scipy.optimize$/;"	i
+optimize	elidestools/des_depth/makeMap.py	/^    import scipy.optimize$/;"	i
+os	elidestools/des_depth/catalogPixelProcess.py	/^import os$/;"	i
+os	elidestools/des_depth/expLimit.py	/^import os$/;"	i
+os	elidestools/des_depth/makeMap.py	/^import os$/;"	i
+os	elidestools/des_depth/pixelConsolidate.py	/^import os$/;"	i
+os	scripts/desDepthGeneratePixelProcessJobArray.py	/^import os$/;"	i
+os	scripts/desDepthMakeDepthMap.py	/^import os$/;"	i
+os	scripts/y6a1_collate_gold_1_0.py	/^import os$/;"	i
+os	scripts/y6a1_collate_gold_2_0.py	/^import os$/;"	i
+os	scripts/y6a1_collate_raw_bd.py	/^import os$/;"	i
+os	scripts/y6a1_collate_raw_summary.py	/^import os$/;"	i
+outputPath	scripts/desDepthGeneratePixelProcessJobArray.py	/^outputPath = os.path.abspath(os.getcwd())$/;"	v
+parser	scripts/desDepthCatalogPixelProcess.py	/^parser = argparse.ArgumentParser(description='Code to compute the coarse depth on a single pixel.')$/;"	v
+parser	scripts/desDepthExpLimitCalc.py	/^parser = argparse.ArgumentParser(description='Code to compute the relationship between exposure time and mag limit from a coarse depth map')$/;"	v
+parser	scripts/desDepthGeneratePixelProcessJobArray.py	/^parser = argparse.ArgumentParser(description="Generate depth generation scripts in LSF format for SLAC")$/;"	v
+parser	scripts/desDepthMakeDepthMap.py	/^    parser = argparse.ArgumentParser(description='Code to make a DES depth map from systematics')$/;"	v
+parser	scripts/desDepthPixelConsolidate.py	/^parser = argparse.ArgumentParser(description='Code to consolidate a bunch of depth map pixel files that were run in parallel.')$/;"	v
+parser	scripts/y6a1_collate_gold_1_0.py	/^    parser = argparse.ArgumentParser(description='Raw download converter')$/;"	v
+parser	scripts/y6a1_collate_gold_2_0.py	/^    parser = argparse.ArgumentParser(description='Raw download converter')$/;"	v
+parser	scripts/y6a1_collate_raw_bd.py	/^    parser = argparse.ArgumentParser(description='Raw download converter')$/;"	v
+parser	scripts/y6a1_collate_raw_summary.py	/^    parser = argparse.ArgumentParser(description='Raw download converter')$/;"	v
+parts	scripts/desDepthGeneratePixelProcessJobArray.py	/^    parts=pixFile.split('_basic.fits')$/;"	v
+pixFiles	scripts/desDepthGeneratePixelProcessJobArray.py	/^pixFiles = sorted(glob.glob('%s*basic.fits' % (args.basicPixBase)))$/;"	v
+pixFiles	scripts/desDepthPixelConsolidate.py	/^pixFiles = sorted(glob.glob('%s' % (args.globStr)))$/;"	v
+pixelConsolidate	elidestools/des_depth/__init__.py	/^from .pixelConsolidate import pixelConsolidate$/;"	i
+pixelConsolidate	elidestools/des_depth/pixelConsolidate.py	/^def pixelConsolidate(pixFiles, outFile, nSide, nest=False):$/;"	f
+plt	elidestools/des_depth/errorModels.py	/^import matplotlib.pyplot as plt$/;"	i
+plt	elidestools/des_depth/expLimit.py	/^import matplotlib.pyplot as plt$/;"	i
+plt	elidestools/des_depth/makeMap.py	/^    import matplotlib.pyplot as plt$/;"	i
+plt	elidestools/des_depth/makeMap.py	/^import matplotlib.pyplot as plt$/;"	i
+print_function	elidestools/des_depth/__init__.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+print_function	elidestools/des_depth/catalogPixelProcess.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+print_function	elidestools/des_depth/depthFunction.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+print_function	elidestools/des_depth/errorModels.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+print_function	elidestools/des_depth/expLimit.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+print_function	elidestools/des_depth/makeMap.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+print_function	elidestools/des_depth/pixelConsolidate.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+print_function	scripts/desDepthCatalogPixelProcess.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+print_function	scripts/desDepthExpLimitCalc.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+print_function	scripts/desDepthGeneratePixelProcessJobArray.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+print_function	scripts/desDepthMakeDepthMap.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+print_function	scripts/desDepthPixelConsolidate.py	/^from __future__ import division, absolute_import, print_function$/;"	i
+rc	scripts/y6a1_collate_gold_1_0.py	/^    rc = elidestools.y6a1_tools.Y6A1Gold1_0Collator(args.outbase, nside=args.nside)$/;"	v
+rc	scripts/y6a1_collate_gold_2_0.py	/^    rc = elidestools.y6a1_tools.Y6A1Gold2_0Collator(args.outbase, nside=args.nside)$/;"	v
+rc	scripts/y6a1_collate_raw_bd.py	/^    rc = elidestools.y6a1_tools.Y6A1RawCollator(args.outbase, nside=args.nside)$/;"	v
+rc	scripts/y6a1_collate_raw_summary.py	/^    rc = elidestools.y6a1_tools.Y6A1RawCollator(args.outbase, nside=args.nside)$/;"	v
+re	elidestools/des_depth/catalogPixelProcess.py	/^import re$/;"	i
+re	scripts/desDepthGeneratePixelProcessJobArray.py	/^import re$/;"	i
+run	elidestools/des_depth/makeMap.py	/^    def run(self):$/;"	m	class:MakeMap
+s2nCut	scripts/desDepthCatalogPixelProcess.py	/^                              s2nCut=args.s2nCut,$/;"	v
+scipy	elidestools/des_depth/errorModels.py	/^import scipy.optimize$/;"	i
+scipy	elidestools/des_depth/makeMap.py	/^    import scipy.optimize$/;"	i
+selectGalaxies	scripts/desDepthCatalogPixelProcess.py	/^                              selectGalaxies=args.selectGalaxies,$/;"	v
+sklearn	elidestools/des_depth/makeMap.py	/^import sklearn$/;"	i
+subprocess	elidestools/des_depth/makeMap.py	/^import subprocess$/;"	i
+summaryFiles	scripts/y6a1_collate_raw_summary.py	/^    summaryFiles = glob.glob(args.globstr)$/;"	v
+sys	elidestools/des_depth/catalogPixelProcess.py	/^import sys$/;"	i
+sys	elidestools/des_depth/pixelConsolidate.py	/^import sys$/;"	i
+sys	scripts/desDepthCatalogPixelProcess.py	/^import sys$/;"	i
+sys	scripts/desDepthExpLimitCalc.py	/^import sys$/;"	i
+sys	scripts/desDepthGeneratePixelProcessJobArray.py	/^import sys$/;"	i
+sys	scripts/desDepthMakeDepthMap.py	/^import sys$/;"	i
+sys	scripts/desDepthPixelConsolidate.py	/^import sys$/;"	i
+sys	scripts/y6a1_collate_gold_1_0.py	/^import sys$/;"	i
+sys	scripts/y6a1_collate_gold_2_0.py	/^import sys$/;"	i
+sys	scripts/y6a1_collate_raw_bd.py	/^import sys$/;"	i
+sys	scripts/y6a1_collate_raw_summary.py	/^import sys$/;"	i
+sysTypes	scripts/desDepthMakeDepthMap.py	/^                                 sysTypes=sysTypes,$/;"	v
+sysTypes	scripts/desDepthMakeDepthMap.py	/^    sysTypes = args.sysTypes.split(',')$/;"	v
+train_test_split	elidestools/des_depth/makeMap.py	/^from sklearn.model_selection import train_test_split$/;"	i
+warnings	elidestools/des_depth/makeMap.py	/^import warnings$/;"	i
+xrange	elidestools/des_depth/catalogPixelProcess.py	/^from past.builtins import xrange$/;"	i
+xrange	elidestools/des_depth/errorModels.py	/^from past.builtins import xrange$/;"	i
+xrange	elidestools/des_depth/expLimit.py	/^from past.builtins import xrange$/;"	i
+zpTemplate	scripts/desDepthMakeDepthMap.py	/^                                 zpTemplate=args.zpTemplate,$/;"	v
