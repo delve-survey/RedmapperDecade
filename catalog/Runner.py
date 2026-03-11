@@ -243,6 +243,7 @@ class BaseRunner:
                                             bands    = ['g', 'r', 'i', 'z'],
                                             aLambda  = [3.186, 2.140, 1.569, 1.196],
                                             npixFit  = [1, 1, 1, 1],
+                                            ebvFile  = '/project/chto/dhayaa/Redmapper/ebv_sfd98_fullres_nside_4096_ring_equatorial.fits',
                                             maxTry   = 10)
         mapMaker.run()
 
@@ -444,7 +445,7 @@ class BaseRunner:
         Julia = Julia[Julia.FLAG_DES == 4].reset_index(drop = True) #Same cuts as DES
 
         DESI  = []
-        Names = ['BGS_ANY', 'LRG', 'ELG_LOPnotqso', 'QSO'] #Numbers match Table 2 of https://arxiv.org/pdf/2411.12020
+        Names = ['BGS_ANY', 'LRG', 'ELG_LOPnotqso'] #Numbers match Table 2 of https://arxiv.org/pdf/2411.12020
         for n in Names:
             paths = (glob.glob(f'/project2/chihway/dhayaa/DESI/{n}_NGC_clustering.dat.fits') + 
                      glob.glob(f'/project2/chihway/dhayaa/DESI/{n}_SGC_clustering.dat.fits'))
@@ -611,7 +612,7 @@ class BaseRunner:
         hpix_choice = [int(h[-10:-5]) for h in hpix_choice]
         hpix_choice = [h for h in hpix_choice if h in hpix_specz]
         np.random.default_rng(seed = self.seed).shuffle(hpix_choice)
-        hpix_choice = hpix_choice[:int(len(hpix_choice) * 0.5)] #Use half of sample to calibrate
+        hpix_choice = hpix_choice[:int(len(hpix_choice) * 1/3)] #Use one-third of sample to calibrate
 
         return hpix_choice
     
@@ -961,7 +962,7 @@ class BaseRunner:
 
 
     @timeit
-    def run_redmapper_pixel(self, n_jobs = 16):
+    def run_redmapper_pixel(self, n_jobs = 24):
 
         filelist = sorted(glob.glob(self.outBase + '_pix*_bdf.fits')) #Get all files by checking for bdf fits
         pixlist  = [int(f[-14:-9]) for f in filelist] #Get only the pixel part of the name
@@ -1387,15 +1388,15 @@ class DESRunner(CombinedRunner):
             out['DEC'].append(f['DEC'][:][GLD]); print("FINISHED DEC")
             out['COADD_OBJECT_ID'].append(f['COADD_OBJECT_ID'][:][GLD]); print("FINISHED COADD_OBJECT_ID")
 
-            out['BDF_FLUX_G_DERED_SFD98'].append(f['BDF_FLUX_G_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 3.186)); print("FINISHED FLUX G")
-            out['BDF_FLUX_R_DERED_SFD98'].append(f['BDF_FLUX_R_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 2.140)); print("FINISHED FLUX R")
-            out['BDF_FLUX_I_DERED_SFD98'].append(f['BDF_FLUX_I_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.568)); print("FINISHED FLUX I")
-            out['BDF_FLUX_Z_DERED_SFD98'].append(f['BDF_FLUX_Z_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.196)); print("FINISHED FLUX Z")
+            out['BDF_FLUX_G_DERED_SFD98'].append(f['BDF_FLUX_G_CORRECTED'][:][GLD]); print("FINISHED FLUX G")
+            out['BDF_FLUX_R_DERED_SFD98'].append(f['BDF_FLUX_R_CORRECTED'][:][GLD]); print("FINISHED FLUX R")
+            out['BDF_FLUX_I_DERED_SFD98'].append(f['BDF_FLUX_I_CORRECTED'][:][GLD]); print("FINISHED FLUX I")
+            out['BDF_FLUX_Z_DERED_SFD98'].append(f['BDF_FLUX_Z_CORRECTED'][:][GLD]); print("FINISHED FLUX Z")
 
-            out['BDF_FLUX_ERR_G_DERED_SFD98'].append(f['BDF_FLUX_ERR_G_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 3.186)); print("FINISHED FLUX ERROR G")
-            out['BDF_FLUX_ERR_R_DERED_SFD98'].append(f['BDF_FLUX_ERR_R_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 2.140)); print("FINISHED FLUX ERROR R")
-            out['BDF_FLUX_ERR_I_DERED_SFD98'].append(f['BDF_FLUX_ERR_I_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.568)); print("FINISHED FLUX ERROR I")
-            out['BDF_FLUX_ERR_Z_DERED_SFD98'].append(f['BDF_FLUX_ERR_Z_CORRECTED'][:][GLD] * np.power(10, 0.4 * f['EBV_SFD98'][:][GLD] * 1.196)); print("FINISHED FLUX ERROR Z")
+            out['BDF_FLUX_ERR_G_DERED_SFD98'].append(f['BDF_FLUX_ERR_G_CORRECTED'][:][GLD]); print("FINISHED FLUX ERROR G")
+            out['BDF_FLUX_ERR_R_DERED_SFD98'].append(f['BDF_FLUX_ERR_R_CORRECTED'][:][GLD]); print("FINISHED FLUX ERROR R")
+            out['BDF_FLUX_ERR_I_DERED_SFD98'].append(f['BDF_FLUX_ERR_I_CORRECTED'][:][GLD]); print("FINISHED FLUX ERROR I")
+            out['BDF_FLUX_ERR_Z_DERED_SFD98'].append(f['BDF_FLUX_ERR_Z_CORRECTED'][:][GLD]); print("FINISHED FLUX ERROR Z")
 
             out['mask'].append(GLD)
 
@@ -1466,15 +1467,15 @@ class DECADERunner(BaseRunner):
             out['DEC'].append(read(f,'DEC')[GLD])
             out['COADD_OBJECT_ID'].append(read(f,'COADD_OBJECT_ID')[GLD])
 
-            out['BDF_FLUX_G_DERED_SFD98'].append(read(f,'BDF_FLUX_G_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 3.186))
-            out['BDF_FLUX_R_DERED_SFD98'].append(read(f,'BDF_FLUX_R_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 2.140))
-            out['BDF_FLUX_I_DERED_SFD98'].append(read(f,'BDF_FLUX_I_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.568))
-            out['BDF_FLUX_Z_DERED_SFD98'].append(read(f,'BDF_FLUX_Z_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.196))
+            out['BDF_FLUX_G_DERED_SFD98'].append(read(f,'BDF_FLUX_G_CORRECTED')[GLD])
+            out['BDF_FLUX_R_DERED_SFD98'].append(read(f,'BDF_FLUX_R_CORRECTED')[GLD])
+            out['BDF_FLUX_I_DERED_SFD98'].append(read(f,'BDF_FLUX_I_CORRECTED')[GLD])
+            out['BDF_FLUX_Z_DERED_SFD98'].append(read(f,'BDF_FLUX_Z_CORRECTED')[GLD])
 
-            out['BDF_FLUX_ERR_G_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_G_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 3.186))
-            out['BDF_FLUX_ERR_R_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_R_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 2.140))
-            out['BDF_FLUX_ERR_I_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_I_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.568))
-            out['BDF_FLUX_ERR_Z_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_Z_CORRECTED')[GLD] * np.power(10, 0.4 * read(f,'EBV_SFD98')[GLD] * 1.196))
+            out['BDF_FLUX_ERR_G_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_G_CORRECTED')[GLD])
+            out['BDF_FLUX_ERR_R_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_R_CORRECTED')[GLD])
+            out['BDF_FLUX_ERR_I_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_I_CORRECTED')[GLD])
+            out['BDF_FLUX_ERR_Z_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_Z_CORRECTED')[GLD])
 
             out['mask'].append(GLD)
 
