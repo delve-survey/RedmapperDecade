@@ -1065,7 +1065,9 @@ class BaseRunner:
         pixlist  = [int(f[-11:-4]) for f in filelist] #Get only the pixel part of the name
         pixlist  = [pixlist[i] for i in np.random.choice(len(pixlist), len(pixlist), replace = False)] #Randomize to balance the load
         
-        if n_jobs == -1: n_jobs = np.min([os.cpu_count(), len(filelist)])
+        if n_jobs == -1: 
+            n_jobs = np.min([os.cpu_count(), len(filelist)])
+            n_jobs = np.min([n_jobs, 32])
 
         print(f"RUNNING {len(pixlist)} PIXELS (OUT OF POSSIBLE {len(filelist)}) USING {n_jobs} JOBS", flush = True)
 
@@ -1430,6 +1432,87 @@ class DESRunner(CombinedRunner):
         return DES
 
 
+class DESEliRunner(CombinedRunner):
+
+    @timeit
+    def prep_training_catalog(self, n_jobs):
+        
+        BANDS = 'GRIZ'
+        keys  = []
+        keys += [f'BDF_FLUX_{B}_DERED_SFD98'     for B in BANDS]
+        keys += [f'BDF_FLUX_ERR_{B}_DERED_SFD98' for B in BANDS]
+        keys += ['RA', 'DEC', 'COADD_OBJECT_ID']
+
+        out   = {k : [] for k in keys + ['mask']}
+
+        outpath = self.outBase + '.tmp_input_cat.hdf5'
+        
+        if os.path.isfile(outpath):
+            print("FILE ALREADY EXISTS....RUNNING JUST COLLATOR AGAIN....")
+
+            # Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+            # Collator.run(outpath)
+            return None
+        else:
+            print("STARTING TO MAKE FILE..")
+
+        with fits.open('/project/kadrlica/dhayaa/DES/Data/y6_gold_2.2.fits') as hdu:
+            f   = hdu[1].data
+            GLD = ( (f['EXT_MASH'][:] >= 2) & 
+                    ((f['FLAGS_FOREGROUND'][:] & ~16) == 0) &
+                    (f['FLAGS_FOOTPRINT'][:] > 0) & 
+                    (f['FLAGS_GOLD'][:] == 0)
+                    )
+            
+            print("FINISHED MASK")
+
+            out['RA'].append(f['RA'][:][GLD]); print("FINISHED RA")
+            out['DEC'].append(f['DEC'][:][GLD]); print("FINISHED DEC")
+            out['COADD_OBJECT_ID'].append(f['COADD_OBJECT_ID'][:][GLD]); print("FINISHED COADD_OBJECT_ID")
+
+            out['BDF_FLUX_G_DERED_SFD98'].append(f['BDF_FLUX_G_CORRECTED'][:][GLD]); print("FINISHED FLUX G")
+            out['BDF_FLUX_R_DERED_SFD98'].append(f['BDF_FLUX_R_CORRECTED'][:][GLD]); print("FINISHED FLUX R")
+            out['BDF_FLUX_I_DERED_SFD98'].append(f['BDF_FLUX_I_CORRECTED'][:][GLD]); print("FINISHED FLUX I")
+            out['BDF_FLUX_Z_DERED_SFD98'].append(f['BDF_FLUX_Z_CORRECTED'][:][GLD]); print("FINISHED FLUX Z")
+
+            out['BDF_FLUX_ERR_G_DERED_SFD98'].append(f['BDF_FLUX_ERR_G_CORRECTED'][:][GLD]); print("FINISHED FLUX ERROR G")
+            out['BDF_FLUX_ERR_R_DERED_SFD98'].append(f['BDF_FLUX_ERR_R_CORRECTED'][:][GLD]); print("FINISHED FLUX ERROR R")
+            out['BDF_FLUX_ERR_I_DERED_SFD98'].append(f['BDF_FLUX_ERR_I_CORRECTED'][:][GLD]); print("FINISHED FLUX ERROR I")
+            out['BDF_FLUX_ERR_Z_DERED_SFD98'].append(f['BDF_FLUX_ERR_Z_CORRECTED'][:][GLD]); print("FINISHED FLUX ERROR Z")
+
+            out['mask'].append(GLD)
+
+        
+        if os.path.isfile(outpath): print("FILE EXISTS AT", outpath, "... OVERWRITING IT....")
+        with h5py.File(outpath, 'w') as f:
+
+            for k in out.keys(): 
+                f.create_dataset(name = k, data = np.concatenate(out[k]))
+                print("FINISHED WRITING", k)
+
+        del out
+        print("OUTPUT WRITTEN TO", outpath)
+
+        Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+        Collator.run(outpath)
+
+
+    @timeit
+    def get_fracdet_map(self):
+
+        return hsp.HealSparseMap.read('/project/kadrlica/dhayaa/DES/y6a2_decasu_griz_nexpgt2_and_fp2_footprint.hsp').fracdet_map(nside = 4096)
+    
+    
+    @timeit
+    def get_foreground_map(self):
+
+        DES = hsp.HealSparseMap.read('/project/kadrlica/dhayaa/DES/y6a2_foreground_mask_v1.4.hs').generate_healpix_map(nside = 4096, nest = False)
+        DES = np.where(DES == hp.UNSEEN, 0, DES).astype(int)
+        DES = (DES & ~16)
+        
+        return DES
+
+
 class DECADERunner(BaseRunner):
 
     @timeit
@@ -1502,6 +1585,85 @@ class DECADERunner(BaseRunner):
     @timeit
     def get_foreground_map(self):
         return hp.read_map("/project/chto/dhayaa/decade/GOLD_Ext0.2_Star5_MCs2_DESY6.fits")
+    
+
+class DECADEEliRunner(BaseRunner):
+
+    @timeit
+    def prep_training_catalog(self, n_jobs):
+        
+        BANDS = 'GRIZ'
+        keys  = []
+        keys += [f'BDF_FLUX_{B}_DERED_SFD98'     for B in BANDS]
+        keys += [f'BDF_FLUX_ERR_{B}_DERED_SFD98' for B in BANDS]
+        keys += ['RA', 'DEC', 'COADD_OBJECT_ID']
+
+        out   = {k : [] for k in keys + ['mask']}
+
+        outpath = self.outBase + '.tmp_input_cat.hdf5'
+        
+        if os.path.isfile(outpath):
+            print("FILE ALREADY EXISTS....RUNNING JUST COLLATOR AGAIN....")
+
+            # Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+            # Collator.run(outpath)
+            return None
+
+        #Silly thing I need to do because of how I saved gold catalog from DELVE
+        def read(f, k): return f[k][k][:]
+
+        with h5py.File(f'/project/kadrlica/dhayaa/delve_dr3/delve_dr3_gold.hdf5', 'r') as f:
+
+            GLD = ( (read(f, 'EXT_MASH') >= 2) & 
+                    ((read(f, 'FLAGS_FOREGROUND') & ~16) == 0) &
+                    (read(f, 'FLAGS_FOOTPRINT') > 0) & 
+                    (read(f, 'FLAGS_GOLD') == 0)
+                    )
+            
+            out['RA'].append(read(f,'RA')[GLD])
+            out['DEC'].append(read(f,'DEC')[GLD])
+            out['COADD_OBJECT_ID'].append(read(f,'COADD_OBJECT_ID')[GLD])
+
+            out['BDF_FLUX_G_DERED_SFD98'].append(read(f,'BDF_FLUX_G_CORRECTED')[GLD])
+            out['BDF_FLUX_R_DERED_SFD98'].append(read(f,'BDF_FLUX_R_CORRECTED')[GLD])
+            out['BDF_FLUX_I_DERED_SFD98'].append(read(f,'BDF_FLUX_I_CORRECTED')[GLD])
+            out['BDF_FLUX_Z_DERED_SFD98'].append(read(f,'BDF_FLUX_Z_CORRECTED')[GLD])
+
+            out['BDF_FLUX_ERR_G_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_G_CORRECTED')[GLD])
+            out['BDF_FLUX_ERR_R_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_R_CORRECTED')[GLD])
+            out['BDF_FLUX_ERR_I_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_I_CORRECTED')[GLD])
+            out['BDF_FLUX_ERR_Z_DERED_SFD98'].append(read(f,'BDF_FLUX_ERR_Z_CORRECTED')[GLD])
+
+            out['mask'].append(GLD)
+
+            
+        if os.path.isfile(outpath): print("FILE EXISTS AT", outpath, "... OVERWRITING IT....")
+        with h5py.File(outpath, 'w') as f:
+
+            for k in out.keys(): 
+                f.create_dataset(name = k, data = np.concatenate(out[k]))
+                print("FINISHED WRITING", k)
+
+        del out
+        print("OUTPUT WRITTEN TO", outpath)
+
+        Collator = mapper.utils.DECADECollator(self.outBase, n_jobs = n_jobs)
+        Collator.run(outpath)
+
+
+    @timeit
+    def get_fracdet_map(self):
+        return hsp.HealSparseMap.read("/project/chto/dhayaa/Redmapper/All_maglim_fracdet.hsp").fracdet_map(nside = 4096)
+    
+    
+    @timeit
+    def get_foreground_map(self):
+
+        Map = hp.read_map("/project/chto/dhayaa/decade/GOLD_Ext0.2_Star5_MCs2_DESY6.fits")
+        Map = np.where(Map == hp.UNSEEN, 0, Map).astype(int)
+        Map = (Map & ~16)
+
+        return Map
 
 
 if __name__ == '__main__':
@@ -1511,13 +1673,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--DECADE",    action = 'store_true')
     parser.add_argument("--DES",       action = 'store_true')
+    parser.add_argument("--DESEli",    action = 'store_true')
+    parser.add_argument("--DECADEEli", action = 'store_true')
     parser.add_argument("--Combined",  action = 'store_true')
     parser.add_argument("--outdir",    action = 'store', type = str, required = True)
     parser.add_argument("--calibdir",  action = 'store', type = str, default = None)
 
     args = vars(parser.parse_args())
 
-    assert (args['DECADE'] + args['DES'] + args['Combined']) == 1, "Use only one of DECADE, DES, or Combined"
+    assert (args['DECADE'] + args['DES'] + args['DESEli'] + args['Combined'] + args['DECADEEli']) == 1, "Use only one of DECADE, DES, DESEli, or Combined"
 
     os.environ['TMPDIR'] = args['outdir']
 
@@ -1527,6 +1691,10 @@ if __name__ == '__main__':
         Runner = DESRunner
     elif args['Combined']:
         Runner = CombinedRunner
+    elif args['DESEli']:
+        Runner = DESEliRunner
+    elif args['DECADEEli']:
+        Runner = DECADEEliRunner
 
     os.makedirs(args['outdir'], exist_ok = True)
     Runner(outBase = os.environ['TMPDIR'] + '/Eli', calib_dir = args['calibdir']).go()
