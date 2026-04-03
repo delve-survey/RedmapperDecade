@@ -5,7 +5,7 @@ import healsparse as hsp, healpy as hp
 
 #You may want to use Lambda > 5 (instead of default Lambda > 20), for completeness considerations.
 #You will almost NEVER want to use volume limited catalog. Always use the flux-limited one.
-def select_des_redmapper(lambda_cut_5 = False, volume_limited = False):
+def select_des_redmapper(lambda_cut_5 = False, volume_limited = False, cosmo_redshifts = False):
     
     PATH = '/project/kadrlica/dhayaa/Redmapper/DESEli_20260314//Files/my_decade_run_redmapper_v0.8.7_lgt20_vl02_catalog.fit'
     if lambda_cut_5:   PATH = PATH.replace('lgt20', 'lgt5')
@@ -15,6 +15,10 @@ def select_des_redmapper(lambda_cut_5 = False, volume_limited = False):
     CAT  = fitsio.read(PATH)
     MSK  = MASK.get_values_pos(CAT['ra'], CAT['dec']) > 0
     CAT  = CAT[MSK]
+
+    if cosmo_redshifts:
+        MSK = (CAT['z_lambda'] > 0.2) & (CAT['z_lambda'] < 0.65)
+        CAT = CAT[MSK]
 
     return CAT
 
@@ -30,7 +34,7 @@ def select_des_redmagic():
     return CAT
 
 
-def select_decade_redmapper(lambda_cut_5 = False, volume_limited = False):
+def select_decade_redmapper(lambda_cut_5 = False, volume_limited = False, cosmo_redshifts = False):
     
     PATH = '/project/kadrlica/dhayaa/Redmapper/DECADEEli_20260314//Files/my_decade_run_redmapper_v0.8.7_lgt20_vl02_catalog.fit'
     if lambda_cut_5:   PATH = PATH.replace('lgt20', 'lgt5')
@@ -40,6 +44,10 @@ def select_decade_redmapper(lambda_cut_5 = False, volume_limited = False):
     CAT  = fitsio.read(PATH)
     MSK  = MASK[hp.ang2pix(4096, CAT['ra'], CAT['dec'], lonlat = True)] == 0 #Proper foreground mask, so 0 means pixel is uncontaminated
     CAT  = CAT[MSK]
+
+    if cosmo_redshifts:
+        MSK = (CAT['z_lambda'] > 0.2) & (CAT['z_lambda'] < 0.65)
+        CAT = CAT[MSK]
 
     return CAT
 
